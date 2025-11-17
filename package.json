@@ -1,0 +1,19 @@
+{
+  "name": "raw-ts",
+  "version": "1.0.0",
+  "main": "./dist/lib/lsp/index.js",
+  "description": "",
+  "scripts": {
+    "build": "tspc",
+    "watch": "tspc -w"
+  },
+  "devDependencies": {
+    "@types/ts-expose-internals": "npm:ts-expose-internals@5.6.3",
+    "ts-node": "^10.9.2",
+    "ts-patch": "^3.3.0",
+    "typescript": "^5.9.3",
+    "raw-ts": "file:."
+  },
+  "author": "Spasimir Pavlov",
+  "license": "MIT"
+}
