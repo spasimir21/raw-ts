@@ -13,7 +13,7 @@ const USE_RAW_TS_EXPORT_SYMBOL = '__USE_RAW$$';
 const RAW_TS_LOG_ID = 'raw-ts';
 const RAW_TS_CACHE_CLEANUP_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 
-const RAW_TYPE_INFO_PROPERTY_NAME = '__rawTypeInfo$$';
+const RAW_TYPE_INFO_PROPERTY_NAME = 'z__RAW_TYPE_INFO$$';
 
 export {
   RAW_TS_IMPORT_PATH,
