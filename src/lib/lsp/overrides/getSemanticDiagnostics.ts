@@ -1,11 +1,9 @@
-import { getConflictingDirectiveAndPragmaError } from '../../analysis';
+import { getConflictingDirectiveAndPragmaError } from '../../analysis/diagnostics/getConflictingDirectiveAndPragmaError';
+import { getNoUseRawDiagnostic } from '../../analysis/diagnostics/getNoUseRawDiagnostics';
+import { getDisableRawPragmaSpanFromFile } from '../../analysis/disableRawPragma';
+import { getUseRawDirectiveFromFile } from '../../analysis/useRawDirective';
 import { LSOverrideFactory } from '../LSOverrideContext';
 import { CACHE_KEYS } from '../cacheKeys';
-import {
-  getDisableRawPragmaSpanFromFile,
-  getNoUseRawDiagnostic,
-  getUseRawDirectiveFromFile
-} from '../../analysis';
 
 const getSemanticDiagnosticsLSOverride: LSOverrideFactory<'getSemanticDiagnostics'> = ({
   ts,

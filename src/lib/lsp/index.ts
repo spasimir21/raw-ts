@@ -5,15 +5,12 @@ import { getQuickInfoAtPositionLSOverride } from './overrides/getQuickInfoAtPosi
 import { getSemanticDiagnosticsLSOverride } from './overrides/getSemanticDiagnostics';
 import { getCodeFixesAtPositionLSOverride } from './overrides/getCodeFixesAtPosition';
 import { getSupportedCodeFixesLSOverride } from './overrides/getSupportedCodeFixes';
+import { RAW_TS_CACHE_CLEANUP_INTERVAL_MS, RAW_TS_LOG_ID } from '../constants';
 import { LSOverrideContext, LSOverrideFactory } from './LSOverrideContext';
+import { createObjectWithOverrides } from '../utils/override';
 import { CODE_FIX_DEFINITIONS } from './codeFixes';
 import { createWorkCache } from './workCache';
 import type TS from 'typescript';
-import {
-  createObjectWithOverrides,
-  RAW_TS_CACHE_CLEANUP_INTERVAL_MS,
-  RAW_TS_LOG_ID
-} from '../common';
 
 declare module 'typescript' {
   interface LanguageService {

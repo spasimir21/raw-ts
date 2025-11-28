@@ -2,7 +2,7 @@
   typeDescriptorOf$<Type>()
   sizeOf$<Type>()
   alignmentOf$<Type>()
-  addressOf$
-  offsetOf$
-  typeCast$
+  addressOf$(value)
+  offsetOf$<Type, 'Field'>()
+  pointerCast$<Type>(pointer)
 */

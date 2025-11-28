@@ -1,5 +1,9 @@
-import { DISABLE_RAW_TS_PRAGMA, RAW_TS_DIAGNOSTIC_CODES, USE_RAW_TS_DIRECTIVE } from '../../common';
 import type TS from 'typescript';
+import {
+  DISABLE_RAW_TS_PRAGMA,
+  RAW_TS_DIAGNOSTIC_CODES,
+  USE_RAW_TS_DIRECTIVE
+} from '../../constants';
 
 const getConflictingDirectiveAndPragmaError = (
   ts: typeof TS,

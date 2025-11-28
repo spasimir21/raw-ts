@@ -1,4 +1,4 @@
-import { Override } from '../common';
+import { Override } from '../utils/override';
 import type TS from 'typescript';
 
 type ProgramOverrideContext = {

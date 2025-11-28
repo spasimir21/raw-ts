@@ -1,10 +1,8 @@
-import { getConflictingDirectiveAndPragmaError } from '../../analysis';
+import { getConflictingDirectiveAndPragmaError } from '../../analysis/diagnostics/getConflictingDirectiveAndPragmaError';
+import { getNoUseRawDiagnostic } from '../../analysis/diagnostics/getNoUseRawDiagnostics';
+import { getDisableRawPragmaSpanFromFile } from '../../analysis/disableRawPragma';
+import { getUseRawDirectiveFromFile } from '../../analysis/useRawDirective';
 import type TS from 'typescript';
-import {
-  getDisableRawPragmaSpanFromFile,
-  getNoUseRawDiagnostic,
-  getUseRawDirectiveFromFile
-} from '../../analysis';
 
 function transformRawTsFile(
   sourceFile: TS.SourceFile,

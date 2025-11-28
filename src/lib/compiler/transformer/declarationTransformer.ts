@@ -1,5 +1,5 @@
-import { getUseRawDirectiveFromFile } from '../../analysis';
-import { USE_RAW_TS_EXPORT_SYMBOL } from '../../common';
+import { getUseRawDirectiveFromFile } from '../../analysis/useRawDirective';
+import { USE_RAW_TS_EXPORT_SYMBOL } from '../../constants';
 import type TS from 'typescript';
 
 function transformRawTsDeclarationFile(

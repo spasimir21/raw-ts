@@ -1,7 +1,7 @@
 import { ProgramOverrideContext, ProgramOverrideFactory } from './ProgramOverrideContext';
 import { PluginConfig, ProgramTransformerExtras } from 'ts-patch';
+import { createObjectWithOverrides } from '../utils/override';
 import { getEmitProgramOverride } from './overrides/emit';
-import { createObjectWithOverrides } from '../common';
 import type ts from 'typescript';
 
 declare module 'typescript' {

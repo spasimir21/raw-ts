@@ -1,5 +1,5 @@
-import { DISABLE_RAW_TS_PRAGMA, USE_RAW_TS_DIRECTIVE } from '../../common';
-import { getDisableRawPragmaSpanFromFile } from '../../analysis';
+import { getDisableRawPragmaSpanFromFile } from '../../analysis/disableRawPragma';
+import { DISABLE_RAW_TS_PRAGMA, USE_RAW_TS_DIRECTIVE } from '../../constants';
 import { LSOverrideFactory } from '../LSOverrideContext';
 import { getNodeAtPosition } from '../getNodeAtPosition';
 import { CACHE_KEYS } from '../cacheKeys';

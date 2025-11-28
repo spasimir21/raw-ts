@@ -1,5 +1,6 @@
-import { DISABLE_RAW_TS_PRAGMA, RAW_TS_DIAGNOSTIC_CODES, USE_RAW_TS_DIRECTIVE } from '../common';
-import { getDisableRawPragmaSpanFromFile, getUseRawDirectiveFromFile } from '../analysis';
+import { DISABLE_RAW_TS_PRAGMA, RAW_TS_DIAGNOSTIC_CODES, USE_RAW_TS_DIRECTIVE } from '../constants';
+import { getDisableRawPragmaSpanFromFile } from '../analysis/disableRawPragma';
+import { getUseRawDirectiveFromFile } from '../analysis/useRawDirective';
 import type TS from 'typescript';
 
 type CodeFixDefinition = {

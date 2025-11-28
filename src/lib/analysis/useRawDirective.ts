@@ -1,4 +1,4 @@
-import { USE_RAW_TS_DIRECTIVE, USE_RAW_TS_EXPORT_SYMBOL } from '../common';
+import { USE_RAW_TS_DIRECTIVE, USE_RAW_TS_EXPORT_SYMBOL } from '../constants';
 import type TS from 'typescript';
 
 function getUseRawDirectiveFromFile(ts: typeof TS, sourceFile: TS.SourceFile) {

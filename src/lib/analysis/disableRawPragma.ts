@@ -1,4 +1,4 @@
-import { DISABLE_RAW_TS_PRAGMA } from '../common';
+import { DISABLE_RAW_TS_PRAGMA } from '../constants';
 import type TS from 'typescript';
 
 function getDisableRawPragmaSpanFromFile(sourceFile: TS.SourceFile): TS.TextSpan | null {

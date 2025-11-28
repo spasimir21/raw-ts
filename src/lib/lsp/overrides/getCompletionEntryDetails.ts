@@ -1,5 +1,5 @@
 import { LSOverrideFactory } from '../LSOverrideContext';
-import { DISABLE_RAW_TS_PRAGMA } from '../../common';
+import { DISABLE_RAW_TS_PRAGMA } from '../../constants';
 
 const getCompletionEntryDetailsLSOverride: LSOverrideFactory<'getCompletionEntryDetails'> = ({
   ts

@@ -1,7 +1,10 @@
 'use raw';
 
-const Entry = {
-  __rawTypeInfo$$: {}
-};
+import { Struct, UInt32, Void } from './lib/types';
+
+type Entry = Struct<{
+  length: UInt32;
+  data: Void;
+}>;
 
 export { Entry };

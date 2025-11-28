@@ -1,5 +1,5 @@
+import { Override } from '../utils/override';
 import { WorkCache } from './workCache';
-import { Override } from '../common';
 import type TS from 'typescript';
 
 type LSOverrideContext = {

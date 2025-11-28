@@ -1,4 +1,4 @@
-import { getDisableRawPragmaSpanFromFile } from '../../analysis';
+import { getDisableRawPragmaSpanFromFile } from '../../analysis/disableRawPragma';
 import { LSOverrideFactory } from '../LSOverrideContext';
 import { CACHE_KEYS } from '../cacheKeys';
 

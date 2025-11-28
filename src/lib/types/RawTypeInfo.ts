@@ -1,27 +1,12 @@
+import { RawTypeKind } from '../constants';
+
 type Alignment = 1 | 2 | 4 | 8;
 
-enum RawTypeKind {
-  UInt8,
-  Int8,
-  UInt16,
-  Int16,
-  UInt32,
-  Int32,
-  UInt64,
-  Int64,
-  Float16,
-  Float32,
-  Float64,
-  Boolean,
-  Void,
-  RawPointer,
-  JSPointer,
-  Array,
-  Union,
-  Struct
-}
-
-type ReferenceRawTypeKind = RawTypeKind.Void | RawTypeKind.Array | RawTypeKind.Union | RawTypeKind.Struct;
+type ReferenceRawTypeKind =
+  | RawTypeKind.Void
+  | RawTypeKind.Array
+  | RawTypeKind.Union
+  | RawTypeKind.Struct;
 
 type NumericRawTypeKind =
   | RawTypeKind.UInt8
@@ -40,8 +25,8 @@ type BigNumericRawTypeKind = RawTypeKind.UInt64 | RawTypeKind.Int64;
 
 type BigNumericRawTypeInfo<Kind extends BigNumericRawTypeKind> = { kind: Kind };
 
-type BooleanRawTypeInfo = {
-  kind: RawTypeKind.Boolean;
+type BoolRawTypeInfo = {
+  kind: RawTypeKind.Bool;
 };
 
 type VoidRawTypeInfo<Length extends number, Align extends Alignment> = {
@@ -68,18 +53,18 @@ type ArrayRawTypeInfo<T extends RawTypeInfo, Length extends number> = {
 
 type UnionRawTypeInfo<T extends Record<string, RawTypeInfo>> = {
   kind: RawTypeKind.Union;
-  elementTypeInfoMap: T;
+  variantTypeInfoMap: T;
 };
 
 type StructRawTypeInfo<T extends Record<string, RawTypeInfo>> = {
   kind: RawTypeKind.Struct;
-  elementTypeInfoMap: T;
+  fieldTypeInfoMap: T;
 };
 
 type RawTypeInfo =
   | NumericRawTypeInfo<NumericRawTypeKind>
   | BigNumericRawTypeInfo<BigNumericRawTypeKind>
-  | BooleanRawTypeInfo
+  | BoolRawTypeInfo
   | VoidRawTypeInfo<number, Alignment>
   | RawPointerRawTypeInfo<any>
   | JSPointerRawTypeInfo<any>
@@ -89,13 +74,12 @@ type RawTypeInfo =
 
 export {
   Alignment,
-  RawTypeKind,
   ReferenceRawTypeKind,
   NumericRawTypeKind,
   NumericRawTypeInfo,
   BigNumericRawTypeKind,
   BigNumericRawTypeInfo,
-  BooleanRawTypeInfo,
+  BoolRawTypeInfo,
   VoidRawTypeInfo,
   RawPointerRawTypeInfo,
   JSPointerRawTypeInfo,

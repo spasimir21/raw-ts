@@ -1,5 +1,6 @@
 'use raw';
 
+import { RawTypeInfoOfContainer } from './lib/types';
 import { Entry } from './Entry';
 
-console.log(Entry);
+type A = RawTypeInfoOfContainer<Entry>;
