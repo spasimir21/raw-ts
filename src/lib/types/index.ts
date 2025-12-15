@@ -1,2 +1,2 @@
-export * from './RawTypeInfo';
+export * from './RawTypeDescriptor';
 export * from './RawType';

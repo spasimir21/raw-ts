@@ -70,8 +70,8 @@ function getNoUseRawDiagnostic(
       importedSymbol = typeChecker.getAliasedSymbol(importedSymbol) ?? importedSymbol;
 
       if (
-        isRawType(typeChecker.getDeclaredTypeOfSymbol(importedSymbol)) ||
-        isRawType(typeChecker.getTypeOfSymbol(importedSymbol))
+        isRawType(sourceFile, typeChecker.getDeclaredTypeOfSymbol(importedSymbol)) ||
+        isRawType(sourceFile, typeChecker.getTypeOfSymbol(importedSymbol))
       )
         return {
           category: ts.DiagnosticCategory.Warning,

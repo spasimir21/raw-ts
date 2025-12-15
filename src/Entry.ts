@@ -2,9 +2,9 @@
 
 import { Struct, UInt32, Void } from './lib/types';
 
-type Entry = Struct<{
+type Entry<DataLength extends number = number> = Struct<{
   length: UInt32;
-  data: Void;
+  data: Void<DataLength>;
 }>;
 
 export { Entry };

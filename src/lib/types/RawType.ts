@@ -1,96 +1,166 @@
-import { RawTypeKind } from '../constants';
-import {
-  Alignment,
-  ArrayRawTypeInfo,
-  BigNumericRawTypeInfo,
-  BigNumericRawTypeKind,
-  BoolRawTypeInfo,
-  JSPointerRawTypeInfo,
-  NumericRawTypeInfo,
-  NumericRawTypeKind,
-  RawPointerRawTypeInfo,
-  RawTypeInfo,
-  ReferenceRawTypeKind,
-  StructRawTypeInfo,
-  UnionRawTypeInfo,
-  VoidRawTypeInfo
-} from './RawTypeInfo';
+import { RAW_TYPE_INFO_PROPERTY_NAME } from '../constants';
 
-type RawTypeInfoContainer<Info extends RawTypeInfo = RawTypeInfo> = {
-  readonly z__RAW_TYPE_INFO$$: Info;
+type Alignment = 1 | 2 | 4 | 8;
+
+enum RawTypeKind {
+  UInt8,
+  Int8,
+  UInt16,
+  Int16,
+  UInt32,
+  Int32,
+  UInt64,
+  Int64,
+  Float16,
+  Float32,
+  Float64,
+  Bool,
+  Void,
+  RawPointer,
+  JSPointer,
+  Array,
+  Union,
+  Struct
+}
+
+type VoidTypeInfo = {
+  kind: RawTypeKind.Void;
+  size: number;
+  alignment: Alignment;
 };
 
-type RawTypeInfoOfContainer<T extends RawTypeInfoContainer> = T['z__RAW_TYPE_INFO$$'];
+type RawPointerTypeInfo = {
+  kind: RawTypeKind.RawPointer;
+  target: RawTypeInfo;
+};
 
-type RawNumeric<Kind extends NumericRawTypeKind> = number &
-  RawTypeInfoContainer<NumericRawTypeInfo<Kind>>;
+type JSPointerTypeInfo = {
+  kind: RawTypeKind.JSPointer;
+  target: any;
+};
 
-type UInt8 = RawNumeric<RawTypeKind.UInt8>;
-type Int8 = RawNumeric<RawTypeKind.Int8>;
-type UInt16 = RawNumeric<RawTypeKind.UInt16>;
-type Int16 = RawNumeric<RawTypeKind.Int16>;
-type UInt32 = RawNumeric<RawTypeKind.UInt32>;
-type Int32 = RawNumeric<RawTypeKind.Int32>;
-type Float16 = RawNumeric<RawTypeKind.Float16>;
-type Float32 = RawNumeric<RawTypeKind.Float32>;
-type Float64 = RawNumeric<RawTypeKind.Float64>;
+type ArrayTypeInfo = {
+  kind: RawTypeKind.Array;
+  element: RawTypeInfo;
+  length: number;
+};
 
-type BigRawNumeric<Kind extends BigNumericRawTypeKind> = bigint &
-  RawTypeInfoContainer<BigNumericRawTypeInfo<Kind>>;
+type UnionTypeInfo = {
+  kind: RawTypeKind.Union;
+  variants: Record<string, RawTypeInfo>;
+};
 
-type UInt64 = BigRawNumeric<RawTypeKind.UInt64>;
-type Int64 = BigRawNumeric<RawTypeKind.Int64>;
+type StructTypeInfo = {
+  kind: RawTypeKind.Struct;
+  fields: Record<string, RawTypeInfo>;
+};
 
-type Bool = boolean & RawTypeInfoContainer<BoolRawTypeInfo>;
+type RawTypeInfo =
+  | {
+      kind: Exclude<
+        RawTypeKind,
+        | RawTypeKind.Void
+        | RawTypeKind.RawPointer
+        | RawTypeKind.JSPointer
+        | RawTypeKind.Array
+        | RawTypeKind.Union
+        | RawTypeKind.Struct
+      >;
+    }
+  | VoidTypeInfo
+  | RawPointerTypeInfo
+  | JSPointerTypeInfo
+  | ArrayTypeInfo
+  | UnionTypeInfo
+  | StructTypeInfo;
 
-type Void<Length extends number = number, Align extends Alignment = 8> = number &
-  RawTypeInfoContainer<VoidRawTypeInfo<Length, Align>>;
+type RawTypeContainer<T extends RawTypeInfo = RawTypeInfo> = {
+  [K in typeof RAW_TYPE_INFO_PROPERTY_NAME]: T;
+};
 
-type RawPointer<T extends RawTypeInfoContainer> = number &
-  (RawTypeInfoOfContainer<T>['kind'] extends ReferenceRawTypeKind
-    ? { readonly value$: T }
-    : { value$: T }) &
-  RawTypeInfoContainer<RawPointerRawTypeInfo<RawTypeInfoOfContainer<T>>>;
+type RawTypeInfoOf<T extends RawTypeContainer> = T[typeof RAW_TYPE_INFO_PROPERTY_NAME];
 
-type JSPointer<T> = number & { value$: T } & RawTypeInfoContainer<JSPointerRawTypeInfo<T>>;
+type RawTypeOf<T, Info extends RawTypeInfo> = T & RawTypeContainer<Info>;
 
-type RawArray<
-  T extends RawTypeInfoContainer,
-  Length extends number = number
-> = (RawTypeInfoOfContainer<T>['kind'] extends ReferenceRawTypeKind
-  ? { readonly [index: number]: T }
-  : { [index: number]: T }) &
-  RawTypeInfoContainer<ArrayRawTypeInfo<RawTypeInfoOfContainer<T>, Length>>;
+type UInt8 = RawTypeOf<number, { kind: RawTypeKind.UInt8 }>;
+type Int8 = RawTypeOf<number, { kind: RawTypeKind.Int8 }>;
+type UInt16 = RawTypeOf<number, { kind: RawTypeKind.UInt16 }>;
+type Int16 = RawTypeOf<number, { kind: RawTypeKind.Int16 }>;
+type UInt32 = RawTypeOf<number, { kind: RawTypeKind.UInt32 }>;
+type Int32 = RawTypeOf<number, { kind: RawTypeKind.Int32 }>;
 
-type ReferenceTypeKeys<T extends Record<string, RawTypeInfoContainer>> = {
-  [K in keyof T]: RawTypeInfoOfContainer<T[K]>['kind'] extends ReferenceRawTypeKind ? K : never;
-}[keyof T];
+type Float16 = RawTypeOf<number, { kind: RawTypeKind.Float16 }>;
+type Float32 = RawTypeOf<number, { kind: RawTypeKind.Float32 }>;
+type Float64 = RawTypeOf<number, { kind: RawTypeKind.Float64 }>;
 
-type ValueTypeKeys<T extends Record<string, RawTypeInfoContainer>> = {
-  [K in keyof T]: RawTypeInfoOfContainer<T[K]>['kind'] extends ReferenceRawTypeKind ? never : K;
-}[keyof T];
+type UInt64 = RawTypeOf<bigint, { kind: RawTypeKind.UInt64 }>;
+type Int64 = RawTypeOf<bigint, { kind: RawTypeKind.Int64 }>;
 
-type Union<T extends Record<string, RawTypeInfoContainer>> = {
-  readonly [K in ReferenceTypeKeys<T>]: T[K];
-} & {
-  [K in ValueTypeKeys<T>]: T[K];
-} & RawTypeInfoContainer<
-    UnionRawTypeInfo<{
-      [K in keyof T]: RawTypeInfoOfContainer<T[K]>;
-    }>
-  >;
+type Bool = RawTypeOf<boolean, { kind: RawTypeKind.Bool }>;
 
-type Struct<T extends Record<string, RawTypeInfoContainer>> = {
-  readonly [K in ReferenceTypeKeys<T>]: T[K];
-} & {
-  [K in ValueTypeKeys<T>]: T[K];
-} & RawTypeInfoContainer<
-    StructRawTypeInfo<{
-      [K in keyof T]: RawTypeInfoOfContainer<T[K]>;
-    }>
-  >;
+type Void<Size extends number = number, Align extends Alignment = 8> = RawTypeOf<
+  unknown,
+  {
+    kind: RawTypeKind.Void;
+    size: Size;
+    alignment: Align;
+  }
+>;
+
+type RawPointer<T extends RawTypeContainer> = RawTypeOf<
+  number & { value$: T },
+  {
+    kind: RawTypeKind.RawPointer;
+    target: RawTypeInfoOf<T>;
+  }
+>;
+
+type JSPointer<T> = RawTypeOf<
+  number & { value$: T },
+  {
+    kind: RawTypeKind.JSPointer;
+    target: T;
+  }
+>;
+
+type RawArray<T extends RawTypeContainer, Length extends number = number> = RawTypeOf<
+  { [index: number]: T },
+  {
+    kind: RawTypeKind.Array;
+    element: RawTypeInfoOf<T>;
+    length: Length;
+  }
+>;
+
+type Union<T extends Record<string, RawTypeContainer>> = RawTypeOf<
+  T,
+  {
+    kind: RawTypeKind.Union;
+    variants: { [K in keyof T]: RawTypeInfoOf<T[K]> };
+  }
+>;
+
+type Struct<T extends Record<string, RawTypeContainer>> = RawTypeOf<
+  T,
+  {
+    kind: RawTypeKind.Struct;
+    fields: { [K in keyof T]: RawTypeInfoOf<T[K]> };
+  }
+>;
 
 export {
+  Alignment,
+  RawTypeKind,
+  RawTypeInfo,
+  VoidTypeInfo,
+  RawPointerTypeInfo,
+  JSPointerTypeInfo,
+  ArrayTypeInfo,
+  UnionTypeInfo,
+  StructTypeInfo,
+  RawTypeContainer,
+  RawTypeInfoOf,
+  RawTypeOf,
   UInt8,
   Int8,
   UInt16,
@@ -108,6 +178,5 @@ export {
   JSPointer,
   RawArray,
   Union,
-  Struct,
-  RawTypeInfoOfContainer
+  Struct
 };

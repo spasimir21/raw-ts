@@ -1,5 +1,5 @@
+import { DISABLE_RAW_TS_PRAGMA, RAW_TS_MACRO_NAMES, USE_RAW_TS_DIRECTIVE } from '../../constants';
 import { getDisableRawPragmaSpanFromFile } from '../../analysis/disableRawPragma';
-import { DISABLE_RAW_TS_PRAGMA, USE_RAW_TS_DIRECTIVE } from '../../constants';
 import { LSOverrideFactory } from '../LSOverrideContext';
 import { getNodeAtPosition } from '../getNodeAtPosition';
 import { CACHE_KEYS } from '../cacheKeys';
@@ -12,7 +12,11 @@ const getQuickInfoAtPositionLSOverride: LSOverrideFactory<'getQuickInfoAtPositio
   getOverride: languageService => (fileName, position, maximumLength) => {
     const quickInfo = languageService.getQuickInfoAtPosition(fileName, position, maximumLength);
 
-    const file = languageService.getProgram()?.getSourceFile(fileName);
+    const program = languageService.getProgram();
+    if (program == null) return quickInfo;
+
+    const typeChecker = program.getTypeChecker();
+    const file = program.getSourceFile(fileName);
     if (file == null) return quickInfo;
 
     if (position <= file.getLeadingTriviaWidth()) {
@@ -72,6 +76,25 @@ const getQuickInfoAtPositionLSOverride: LSOverrideFactory<'getQuickInfoAtPositio
             kind: 'text'
           }
         ]
+      };
+
+    if (
+      quickInfo &&
+      quickInfo.displayParts &&
+      ts.isIdentifier(node) &&
+      ts.isCallExpression(node.parent) &&
+      RAW_TS_MACRO_NAMES.has(node.text)
+    )
+      return {
+        ...quickInfo,
+        displayParts: quickInfo.displayParts.map(part =>
+          part.text === 'alias'
+            ? {
+                text: 'macro',
+                kind: part.kind
+              }
+            : part
+        )
       };
 
     return quickInfo;
