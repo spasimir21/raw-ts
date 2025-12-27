@@ -1,5 +1,6 @@
 import { DISABLE_RAW_TS_PRAGMA, RAW_TS_MACRO_NAMES, USE_RAW_TS_DIRECTIVE } from '../../constants';
 import { getDisableRawPragmaSpanFromFile } from '../../analysis/disableRawPragma';
+import { analyzeRawType, isRawType } from '../../analysis/analysis';
 import { LSOverrideFactory } from '../LSOverrideContext';
 import { getNodeAtPosition } from '../getNodeAtPosition';
 import { CACHE_KEYS } from '../cacheKeys';
@@ -16,12 +17,13 @@ const getQuickInfoAtPositionLSOverride: LSOverrideFactory<'getQuickInfoAtPositio
     if (program == null) return quickInfo;
 
     const typeChecker = program.getTypeChecker();
-    const file = program.getSourceFile(fileName);
-    if (file == null) return quickInfo;
 
-    if (position <= file.getLeadingTriviaWidth()) {
+    const sourceFile = program.getSourceFile(fileName);
+    if (sourceFile == null) return quickInfo;
+
+    if (position <= sourceFile.getLeadingTriviaWidth()) {
       // prettier-ignore
-      const disableRawPragmaSpan = cache.get(CACHE_KEYS.PRAGMA_SPAN, fileName, () => getDisableRawPragmaSpanFromFile(file));
+      const disableRawPragmaSpan = cache.get(CACHE_KEYS.PRAGMA_SPAN, fileName, () => getDisableRawPragmaSpanFromFile(sourceFile));
 
       if (
         disableRawPragmaSpan == null ||
@@ -49,13 +51,13 @@ const getQuickInfoAtPositionLSOverride: LSOverrideFactory<'getQuickInfoAtPositio
       };
     }
 
-    const node = getNodeAtPosition(ts, file, position);
+    const node = getNodeAtPosition(ts, sourceFile, position);
     if (node == null) return quickInfo;
 
     if (
       ts.isStringLiteral(node) &&
       node.text === USE_RAW_TS_DIRECTIVE &&
-      file.statements[0] === node.parent
+      sourceFile.statements[0] === node.parent
     )
       return {
         kind: ts.ScriptElementKind.string,
@@ -78,13 +80,9 @@ const getQuickInfoAtPositionLSOverride: LSOverrideFactory<'getQuickInfoAtPositio
         ]
       };
 
-    if (
-      quickInfo &&
-      quickInfo.displayParts &&
-      ts.isIdentifier(node) &&
-      ts.isCallExpression(node.parent) &&
-      RAW_TS_MACRO_NAMES.has(node.text)
-    )
+    if (!quickInfo || !quickInfo.displayParts || !ts.isIdentifier(node)) return quickInfo;
+
+    if (ts.isCallExpression(node.parent) && RAW_TS_MACRO_NAMES.has(node.text))
       return {
         ...quickInfo,
         displayParts: quickInfo.displayParts.map(part =>
@@ -96,6 +94,21 @@ const getQuickInfoAtPositionLSOverride: LSOverrideFactory<'getQuickInfoAtPositio
             : part
         )
       };
+
+    const type = typeChecker.getTypeAtLocation(node);
+    if (isRawType(sourceFile, type)) {
+      const analysis = analyzeRawType(ts, sourceFile, typeChecker, type);
+
+      return {
+        ...quickInfo,
+        displayParts: [
+          {
+            text: analysis.errorMessage ?? JSON.stringify(analysis.descriptor, null, 2),
+            kind: 'text'
+          }
+        ]
+      };
+    }
 
     return quickInfo;
   }

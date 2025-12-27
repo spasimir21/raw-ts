@@ -113,7 +113,7 @@ type VoidDescriptor<Size extends number = number, Align extends Alignment = Alig
   size: Size;
   alignment: Align;
   isValueType: false;
-  hasDynamicSize: number extends Size ? true : false;
+  hasDynamicSize: boolean;
 };
 
 type RawPointerDescriptor<T extends RawTypeDescriptor = RawTypeDescriptor> = {
@@ -142,8 +142,9 @@ type ArrayDescriptor<
   size: number;
   alignment: T['alignment'];
   isValueType: false;
-  hasDynamicSize: number extends Length ? true : false;
-  length: number extends Length ? null : Length;
+  hasDynamicSize: boolean;
+  hasFixedLength: boolean;
+  length: Length;
   elementDescriptor: T;
 };
 
@@ -258,11 +259,11 @@ type RawTypeDescriptorOfInfo<T extends RawTypeInfo> =
     RawTypeInfo extends T ? RawTypeDescriptor
   : T['kind'] extends keyof RawTypeDescriptorByKindMap ? RawTypeDescriptorByKindMap[T['kind']]
   : T extends VoidTypeInfo ? VoidDescriptor<T['size'], T['alignment']>
-  : T extends RawPointerTypeInfo ? RawPointerDescriptor<RawTypeDescriptorOfInfo<T['target']>>
+  : T extends RawPointerTypeInfo ? RawPointerDescriptor<RawTypeDescriptorOfInfo<RawTypeInfoOf<T['target']>>>
   : T extends JSPointerTypeInfo ? JSPointerDescriptor<T['target']>
-  : T extends ArrayTypeInfo ? ArrayDescriptor<RawTypeDescriptorOfInfo<T['element']>, T['length']>
-  : T extends UnionTypeInfo ? UnionDescriptor<{ [K in keyof T['variants']]: RawTypeDescriptorOfInfo<T['variants'][K]> }>
-  : T extends StructTypeInfo ? StructDescriptor<{ [K in keyof T['fields']]: RawTypeDescriptorOfInfo<T['fields'][K]> }>
+  : T extends ArrayTypeInfo ? ArrayDescriptor<RawTypeDescriptorOfInfo<RawTypeInfoOf<T['element']>>, T['length']>
+  : T extends UnionTypeInfo ? UnionDescriptor<{ [K in keyof T['variants']]: RawTypeDescriptorOfInfo<RawTypeInfoOf<T['variants'][K]>> }>
+  : T extends StructTypeInfo ? StructDescriptor<{ [K in keyof T['fields']]: RawTypeDescriptorOfInfo<RawTypeInfoOf<T['fields'][K]>> }>
   : RawTypeDescriptor;
 
 type RawTypeDescriptorOf<T extends RawTypeContainer> = RawTypeDescriptorOfInfo<RawTypeInfoOf<T>>;

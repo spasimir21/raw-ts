@@ -31,7 +31,7 @@ type VoidTypeInfo = {
 
 type RawPointerTypeInfo = {
   kind: RawTypeKind.RawPointer;
-  target: RawTypeInfo;
+  target: RawTypeContainer;
 };
 
 type JSPointerTypeInfo = {
@@ -41,18 +41,18 @@ type JSPointerTypeInfo = {
 
 type ArrayTypeInfo = {
   kind: RawTypeKind.Array;
-  element: RawTypeInfo;
+  element: RawTypeContainer;
   length: number;
 };
 
 type UnionTypeInfo = {
   kind: RawTypeKind.Union;
-  variants: Record<string, RawTypeInfo>;
+  variants: Record<string, RawTypeContainer>;
 };
 
 type StructTypeInfo = {
   kind: RawTypeKind.Struct;
-  fields: Record<string, RawTypeInfo>;
+  fields: Record<string, RawTypeContainer>;
 };
 
 type RawTypeInfo =
@@ -111,7 +111,7 @@ type RawPointer<T extends RawTypeContainer> = RawTypeOf<
   number & { value$: T },
   {
     kind: RawTypeKind.RawPointer;
-    target: RawTypeInfoOf<T>;
+    target: T;
   }
 >;
 
@@ -127,7 +127,7 @@ type RawArray<T extends RawTypeContainer, Length extends number = number> = RawT
   { [index: number]: T },
   {
     kind: RawTypeKind.Array;
-    element: RawTypeInfoOf<T>;
+    element: T;
     length: Length;
   }
 >;
@@ -136,7 +136,7 @@ type Union<T extends Record<string, RawTypeContainer>> = RawTypeOf<
   T,
   {
     kind: RawTypeKind.Union;
-    variants: { [K in keyof T]: RawTypeInfoOf<T[K]> };
+    variants: T;
   }
 >;
 
@@ -144,7 +144,7 @@ type Struct<T extends Record<string, RawTypeContainer>> = RawTypeOf<
   T,
   {
     kind: RawTypeKind.Struct;
-    fields: { [K in keyof T]: RawTypeInfoOf<T[K]> };
+    fields: T;
   }
 >;
 

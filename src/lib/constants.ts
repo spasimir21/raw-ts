@@ -1,10 +1,14 @@
+import { generateErrorCodes } from './utils/errorCodes';
+
 const RAW_TS_IMPORT_PATH = './lib'; // TODO: Use real raw-ts import path
 
-const RAW_TS_DIAGNOSTIC_CODES = {
-  MISSING_USE_RAW_DIRECTIVE: 69420,
-  CONFLICTING_DIRECTIVE_AND_PRAGMA: 69421,
-  CIRCULAR_TYPE_DEFINITION: 69422
-} as const;
+const RAW_TS_DIAGNOSTIC_CODES = generateErrorCodes(69420, [
+  'MISSING_USE_RAW_DIRECTIVE',
+  'CONFLICTING_DIRECTIVE_AND_PRAGMA',
+  'NOT_A_RAW_TYPE',
+  'INVALID_RAW_TYPE',
+  'SELF_REFERENTIAL_RAW_TYPE'
+]);
 
 const DISABLE_RAW_TS_PRAGMA = '@disable-raw';
 const USE_RAW_TS_DIRECTIVE = 'use raw';

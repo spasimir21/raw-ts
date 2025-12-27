@@ -1,6 +1,6 @@
 import { RAW_TS_IMPORT_PATH, RAW_TS_DIAGNOSTIC_CODES, USE_RAW_TS_DIRECTIVE } from '../../constants';
 import { getUseRawDirectiveFromFile } from '../useRawDirective';
-import { isRawType } from '../type/rawType';
+import { isRawType } from '../analysis';
 import type TS from 'typescript';
 
 function getNoUseRawDiagnostic(
