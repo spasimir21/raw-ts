@@ -2,14 +2,13 @@ import { getDisableRawPragmaSpanFromFile } from '../../analysis/disableRawPragma
 import { analyzeRawType, isRawType } from '../../analysis/analysis';
 import { LSOverrideFactory } from '../LSOverrideContext';
 import { getNodeAtPosition } from '../getNodeAtPosition';
+import { RawTypeKind } from '../../types';
 import { CACHE_KEYS } from '../cacheKeys';
 import {
   DISABLE_RAW_TS_PRAGMA,
-  RAW_TS_MACRO_NAMES,
   RAW_TS_MACROS_NAME_SET,
   USE_RAW_TS_DIRECTIVE
 } from '../../constants';
-import { RawTypeKind } from '../../types';
 
 const getQuickInfoAtPositionLSOverride: LSOverrideFactory<'getQuickInfoAtPosition'> = ({
   ts,
@@ -101,7 +100,9 @@ const getQuickInfoAtPositionLSOverride: LSOverrideFactory<'getQuickInfoAtPositio
         )
       };
 
-    const type = typeChecker.getTypeAtLocation(node);
+    const type = typeChecker.getTypeAtLocation(
+      ts.isTypeReferenceNode(node.parent) ? node.parent : node
+    );
     if (isRawType(sourceFile, type)) {
       const analysis = analyzeRawType(ts, sourceFile, typeChecker, type);
       if (analysis.descriptor == null) return quickInfo;
