@@ -1,4 +1,5 @@
 import { getConflictingDirectiveAndPragmaError } from '../../analysis/diagnostics/getConflictingDirectiveAndPragmaError';
+import { getRawTsDiagnosticsForFile } from '../../analysis/diagnostics/getRawTsDiagnosticsForFile';
 import { getNoUseRawDiagnostic } from '../../analysis/diagnostics/getNoUseRawDiagnostics';
 import { getDisableRawPragmaSpanFromFile } from '../../analysis/disableRawPragma';
 import { getUseRawDirectiveFromFile } from '../../analysis/useRawDirective';
@@ -41,7 +42,15 @@ const getSemanticDiagnosticsLSOverride: LSOverrideFactory<'getSemanticDiagnostic
       return noDirectiveDiagnostic ? [...diagnostics, noDirectiveDiagnostic] : diagnostics;
     }
 
-    return diagnostics;
+    const startTimeMs = performance.now();
+    // prettier-ignore
+    const rawTsDiagnostics = cache.get(CACHE_KEYS.RAW_TS_DIAGNOSTICS, fileName, () => getRawTsDiagnosticsForFile(ts, program.getTypeChecker(), file));
+    const durationMs = performance.now() - startTimeMs;
+
+    if (durationMs >= 3)
+      log(`SLOW getRawTsDiagnosticsForFile!!! ${durationMs.toFixed(2)}ms ${fileName}`);
+
+    return [...diagnostics, ...rawTsDiagnostics];
   }
 });
 

@@ -1,5 +1,6 @@
 'use raw';
 
+import { typeDescriptorOf$ } from './lib/macros';
 import {
   Bool,
   Float32,
@@ -14,6 +15,9 @@ import {
 } from './lib/types';
 
 type A = Struct<{
-  id: RawArray<UInt8, 13>;
-  data: Void<number, 4>;
+  id: Void<number, 4>;
 }>;
+
+const descriptor = typeDescriptorOf$<A>();
+
+console.log(descriptor);

@@ -1,9 +1,15 @@
-import { DISABLE_RAW_TS_PRAGMA, RAW_TS_MACRO_NAMES, USE_RAW_TS_DIRECTIVE } from '../../constants';
 import { getDisableRawPragmaSpanFromFile } from '../../analysis/disableRawPragma';
 import { analyzeRawType, isRawType } from '../../analysis/analysis';
 import { LSOverrideFactory } from '../LSOverrideContext';
 import { getNodeAtPosition } from '../getNodeAtPosition';
 import { CACHE_KEYS } from '../cacheKeys';
+import {
+  DISABLE_RAW_TS_PRAGMA,
+  RAW_TS_MACRO_NAMES,
+  RAW_TS_MACROS_NAME_SET,
+  USE_RAW_TS_DIRECTIVE
+} from '../../constants';
+import { RawTypeKind } from '../../types';
 
 const getQuickInfoAtPositionLSOverride: LSOverrideFactory<'getQuickInfoAtPosition'> = ({
   ts,
@@ -82,7 +88,7 @@ const getQuickInfoAtPositionLSOverride: LSOverrideFactory<'getQuickInfoAtPositio
 
     if (!quickInfo || !quickInfo.displayParts || !ts.isIdentifier(node)) return quickInfo;
 
-    if (ts.isCallExpression(node.parent) && RAW_TS_MACRO_NAMES.has(node.text))
+    if (ts.isCallExpression(node.parent) && RAW_TS_MACROS_NAME_SET.has(node.text))
       return {
         ...quickInfo,
         displayParts: quickInfo.displayParts.map(part =>
@@ -98,14 +104,24 @@ const getQuickInfoAtPositionLSOverride: LSOverrideFactory<'getQuickInfoAtPositio
     const type = typeChecker.getTypeAtLocation(node);
     if (isRawType(sourceFile, type)) {
       const analysis = analyzeRawType(ts, sourceFile, typeChecker, type);
+      if (analysis.descriptor == null) return quickInfo;
+
+      const descriptor = analysis.descriptor;
 
       return {
         ...quickInfo,
         displayParts: [
           {
-            text: analysis.errorMessage ?? JSON.stringify(analysis.descriptor, null, 2),
+            text: `[Size: ${descriptor.size}${
+              descriptor.hasDynamicSize ? ' + dynamic' : ''
+            } bytes, Alignment: ${descriptor.alignment}${
+              descriptor.kind === RawTypeKind.Struct
+                ? `, Padding: ${descriptor.totalPaddingSize} bytes`
+                : ''
+            }] `,
             kind: 'text'
-          }
+          },
+          ...quickInfo.displayParts
         ]
       };
     }
