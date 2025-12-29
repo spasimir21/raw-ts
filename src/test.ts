@@ -1,23 +1,19 @@
 'use raw';
 
+import { RawArray, RawPointer, Struct, UInt32 } from './lib/types';
 import { typeDescriptorOf$ } from './lib/macros';
-import {
-  Bool,
-  Float32,
-  JSPointer,
-  RawArray,
-  RawPointer,
-  Struct,
-  UInt16,
-  UInt8,
-  Union,
-  Void
-} from './lib/types';
+
+enum IDK {
+  test,
+  cool,
+  nice
+}
 
 type A = Struct<{
-  id: Void<number, 4>;
+  id: UInt32<IDK>;
+  children: RawArray<RawPointer<A>>;
 }>;
 
 const descriptor = typeDescriptorOf$<A>();
 
-console.log(descriptor);
+console.dir(descriptor, { depth: null });

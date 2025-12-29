@@ -82,12 +82,12 @@ type RawTypeInfoOf<T extends RawTypeContainer> = T[typeof RAW_TYPE_INFO_PROPERTY
 
 type RawTypeOf<T, Info extends RawTypeInfo> = T & RawTypeContainer<Info>;
 
-type UInt8 = RawTypeOf<number, { kind: RawTypeKind.UInt8 }>;
-type Int8 = RawTypeOf<number, { kind: RawTypeKind.Int8 }>;
-type UInt16 = RawTypeOf<number, { kind: RawTypeKind.UInt16 }>;
-type Int16 = RawTypeOf<number, { kind: RawTypeKind.Int16 }>;
-type UInt32 = RawTypeOf<number, { kind: RawTypeKind.UInt32 }>;
-type Int32 = RawTypeOf<number, { kind: RawTypeKind.Int32 }>;
+type UInt8<T = number> = RawTypeOf<T, { kind: RawTypeKind.UInt8 }>;
+type Int8<T = number> = RawTypeOf<T, { kind: RawTypeKind.Int8 }>;
+type UInt16<T = number> = RawTypeOf<T, { kind: RawTypeKind.UInt16 }>;
+type Int16<T = number> = RawTypeOf<T, { kind: RawTypeKind.Int16 }>;
+type UInt32<T = number> = RawTypeOf<T, { kind: RawTypeKind.UInt32 }>;
+type Int32<T = number> = RawTypeOf<T, { kind: RawTypeKind.Int32 }>;
 
 type Float16 = RawTypeOf<number, { kind: RawTypeKind.Float16 }>;
 type Float32 = RawTypeOf<number, { kind: RawTypeKind.Float32 }>;
