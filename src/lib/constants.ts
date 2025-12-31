@@ -22,7 +22,10 @@ const RAW_TS_CACHE_CLEANUP_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 const RAW_TYPE_INFO_PROPERTY_NAME = 'z__RAW_TYPE_INFO$$';
 
 const RAW_TS_MACRO_NAMES = {
-  TYPE_DESCRIPTOR_OF: 'typeDescriptorOf$'
+  TYPE_DESCRIPTOR_OF: 'typeDescriptorOf$',
+  SIZE_OF: 'sizeOf$',
+  ALIGNMENT_OF: 'alignmentOf$',
+  OFFSET_OF: 'offsetOf$'
 };
 
 const RAW_TS_MACROS_NAME_SET = new Set(Object.values(RAW_TS_MACRO_NAMES));

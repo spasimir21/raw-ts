@@ -3,7 +3,7 @@ import { getTypeArgumentCountDiagnostic } from '../helpers';
 import { analyzeRawType } from '../../analysis';
 import type TS from 'typescript';
 
-function getDiagnosticForTypeDescriptorOfMacro(
+function getDiagnosticForSizeOfMacro(
   ts: typeof TS,
   typeChecker: TS.TypeChecker,
   sourceFile: TS.SourceFile,
@@ -37,4 +37,4 @@ function getDiagnosticForTypeDescriptorOfMacro(
   return null;
 }
 
-export { getDiagnosticForTypeDescriptorOfMacro };
+export { getDiagnosticForSizeOfMacro };

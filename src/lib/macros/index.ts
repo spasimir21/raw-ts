@@ -2,15 +2,14 @@
   typeDescriptorOf$<Type>()
   sizeOf$<Type>()
   alignmentOf$<Type>()
-  addressOf$(value)
   offsetOf$<Type, 'Field'>()
   pointerCast$<Type>(pointer)
-  voidCast$<Type>(voidValue)
-  castToVoid$(refValue)
+  referenceCast$<Type>(refValue)
+  addressOf$(value)
 */
 
-import { RawTypeContainer, RawTypeDescriptorOf } from '../types';
-import { USE_RAW_TS_DIRECTIVE } from '../constants';
+import { RawTypeContainer, RawTypeDescriptorOf, StructTypeInfo } from '../types';
+import { RAW_TYPE_INFO_PROPERTY_NAME, USE_RAW_TS_DIRECTIVE } from '../constants';
 
 const throwMacroError = () => {
   throw new Error(
@@ -21,4 +20,13 @@ const throwMacroError = () => {
 const typeDescriptorOf$ = <T extends RawTypeContainer>(): RawTypeDescriptorOf<T> =>
   throwMacroError();
 
-export { typeDescriptorOf$ };
+const sizeOf$ = <T extends RawTypeContainer>(): number => throwMacroError();
+
+const alignmentOf$ = <T extends RawTypeContainer>(): number => throwMacroError();
+
+const offsetOf$ = <
+  T extends RawTypeContainer<StructTypeInfo>,
+  F extends Exclude<keyof T, typeof RAW_TYPE_INFO_PROPERTY_NAME>
+>(): number => throwMacroError();
+
+export { typeDescriptorOf$, sizeOf$, alignmentOf$, offsetOf$ };

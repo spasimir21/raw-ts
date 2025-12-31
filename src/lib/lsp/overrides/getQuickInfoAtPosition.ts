@@ -1,4 +1,5 @@
 import { getDisableRawPragmaSpanFromFile } from '../../analysis/disableRawPragma';
+import { getMacroPreviewForQuickInfo } from './quickInfo/macroPreview';
 import { analyzeRawType, isRawType } from '../../analysis/analysis';
 import { LSOverrideFactory } from '../LSOverrideContext';
 import { getNodeAtPosition } from '../getNodeAtPosition';
@@ -87,18 +88,45 @@ const getQuickInfoAtPositionLSOverride: LSOverrideFactory<'getQuickInfoAtPositio
 
     if (!quickInfo || !quickInfo.displayParts || !ts.isIdentifier(node)) return quickInfo;
 
-    if (ts.isCallExpression(node.parent) && RAW_TS_MACROS_NAME_SET.has(node.text))
+    if (RAW_TS_MACROS_NAME_SET.has(node.text)) {
+      const displayParts = [...(quickInfo.displayParts ?? [])].map(part =>
+        part.text === 'alias'
+          ? {
+              text: 'macro',
+              kind: part.kind
+            }
+          : part
+      );
+
+      if (!ts.isCallExpression(node.parent))
+        return {
+          ...quickInfo,
+          displayParts
+        };
+
+      const preview = getMacroPreviewForQuickInfo(
+        ts,
+        sourceFile,
+        typeChecker,
+        node.parent,
+        node.text
+      );
+
       return {
         ...quickInfo,
-        displayParts: quickInfo.displayParts.map(part =>
-          part.text === 'alias'
-            ? {
-                text: 'macro',
-                kind: part.kind
-              }
-            : part
-        )
+        displayParts,
+        documentation:
+          preview == null
+            ? quickInfo.documentation ?? []
+            : [
+                {
+                  text: `\`\`\`js\n${preview}\n\`\`\``,
+                  kind: 'text'
+                },
+                ...(quickInfo.documentation ?? [])
+              ]
       };
+    }
 
     const type = typeChecker.getTypeAtLocation(
       ts.isTypeReferenceNode(node.parent) ? node.parent : node

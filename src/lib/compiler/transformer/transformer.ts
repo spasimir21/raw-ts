@@ -2,25 +2,8 @@ import { getConflictingDirectiveAndPragmaError } from '../../analysis/diagnostic
 import { getNoUseRawDiagnostic } from '../../analysis/diagnostics/getNoUseRawDiagnostics';
 import { getDisableRawPragmaSpanFromFile } from '../../analysis/disableRawPragma';
 import { getUseRawDirectiveFromFile } from '../../analysis/useRawDirective';
-import { transformTypeDescriptorOfMacro } from './macros/typeDescriptorOf';
-import { RAW_TS_MACRO_NAMES } from '../../constants';
+import { transformMacro } from './transformMacro';
 import type TS from 'typescript';
-
-function transformMacro(
-  sourceFile: TS.SourceFile,
-  ts: typeof TS,
-  typeChecker: TS.TypeChecker,
-  ctx: TS.TransformationContext,
-  node: TS.CallExpression,
-  macroNode: string
-): TS.Node {
-  switch (macroNode) {
-    case RAW_TS_MACRO_NAMES.TYPE_DESCRIPTOR_OF:
-      return transformTypeDescriptorOfMacro(sourceFile, ts, typeChecker, ctx, node);
-  }
-
-  return node;
-}
 
 function transformRawTsFile(
   sourceFile: TS.SourceFile,
@@ -52,7 +35,7 @@ function transformRawTsFile(
     if (!ts.isCallExpression(node) || !ts.isIdentifier(node.expression))
       return ts.visitEachChild(node, visit, ctx);
 
-    return transformMacro(sourceFile, ts, typeChecker, ctx, node, node.expression.text);
+    return transformMacro(sourceFile, ts, typeChecker, ctx, node, node.expression);
   };
 
   return ts.visitNode(sourceFile, visit) as TS.SourceFile;

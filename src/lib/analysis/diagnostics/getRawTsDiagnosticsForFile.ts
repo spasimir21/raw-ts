@@ -1,21 +1,5 @@
-import { getDiagnosticForTypeDescriptorOfMacro } from './macros/typeDescriptorOf';
-import { RAW_TS_MACRO_NAMES } from '../../constants';
+import { getDiagnosticForMacro } from './macros/macroDiagnostics';
 import type TS from 'typescript';
-
-function getDiagnosticForMacro(
-  ts: typeof TS,
-  typeChecker: TS.TypeChecker,
-  sourceFile: TS.SourceFile,
-  node: TS.Identifier,
-  callNode: TS.CallExpression
-) {
-  switch (node.text) {
-    case RAW_TS_MACRO_NAMES.TYPE_DESCRIPTOR_OF:
-      return getDiagnosticForTypeDescriptorOfMacro(ts, typeChecker, sourceFile, callNode);
-  }
-
-  return null;
-}
 
 function getRawTsDiagnosticsForFile(
   ts: typeof TS,
