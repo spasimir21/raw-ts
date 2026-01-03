@@ -74,6 +74,8 @@ type RawTypeInfo =
   | UnionTypeInfo
   | StructTypeInfo;
 
+type ReferenceRawTypeInfo = VoidTypeInfo | ArrayTypeInfo | UnionTypeInfo | StructTypeInfo;
+
 type RawTypeContainer<T extends RawTypeInfo = RawTypeInfo> = {
   [K in typeof RAW_TYPE_INFO_PROPERTY_NAME]: T;
 };
@@ -152,6 +154,7 @@ export {
   Alignment,
   RawTypeKind,
   RawTypeInfo,
+  ReferenceRawTypeInfo,
   VoidTypeInfo,
   RawPointerTypeInfo,
   JSPointerTypeInfo,

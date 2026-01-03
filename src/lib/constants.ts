@@ -25,7 +25,10 @@ const RAW_TS_MACRO_NAMES = {
   TYPE_DESCRIPTOR_OF: 'typeDescriptorOf$',
   SIZE_OF: 'sizeOf$',
   ALIGNMENT_OF: 'alignmentOf$',
-  OFFSET_OF: 'offsetOf$'
+  OFFSET_OF: 'offsetOf$',
+  POINTER_CAST: 'pointerCast$',
+  REFERENCE_CAST: 'referenceCast$',
+  ADDRESS_OF: 'addressOf$'
 };
 
 const RAW_TS_MACROS_NAME_SET = new Set(Object.values(RAW_TS_MACRO_NAMES));
