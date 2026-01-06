@@ -23,6 +23,12 @@ enum RawTypeKind {
   Struct
 }
 
+type ReferenceRawTypeKind =
+  | RawTypeKind.Void
+  | RawTypeKind.Array
+  | RawTypeKind.Union
+  | RawTypeKind.Struct;
+
 type VoidTypeInfo = {
   kind: RawTypeKind.Void;
   size: number;
@@ -153,6 +159,7 @@ type Struct<T extends Record<string, RawTypeContainer>> = RawTypeOf<
 export {
   Alignment,
   RawTypeKind,
+  ReferenceRawTypeKind,
   RawTypeInfo,
   ReferenceRawTypeInfo,
   VoidTypeInfo,

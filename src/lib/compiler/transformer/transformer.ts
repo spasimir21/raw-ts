@@ -4,6 +4,7 @@ import { getDisableRawPragmaSpanFromFile } from '../../analysis/disableRawPragma
 import { getUseRawDirectiveFromFile } from '../../analysis/useRawDirective';
 import { transformMacro } from './transformMacro';
 import type TS from 'typescript';
+import { transformPropertyAccess } from './transformPropertyAccess';
 
 function transformRawTsFile(
   sourceFile: TS.SourceFile,
@@ -32,10 +33,13 @@ function transformRawTsFile(
   sourceFile.rawTsDiagnostics = [];
 
   const visit = (node: TS.Node) => {
-    if (!ts.isCallExpression(node) || !ts.isIdentifier(node.expression))
-      return ts.visitEachChild(node, visit, ctx);
+    if (ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node))
+      return transformPropertyAccess(sourceFile, ts, typeChecker, ctx, node, visit);
 
-    return transformMacro(sourceFile, ts, typeChecker, ctx, node, node.expression);
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression))
+      return transformMacro(sourceFile, ts, typeChecker, ctx, node, node.expression, visit);
+
+    return ts.visitEachChild(node, visit, ctx);
   };
 
   return ts.visitNode(sourceFile, visit) as TS.SourceFile;

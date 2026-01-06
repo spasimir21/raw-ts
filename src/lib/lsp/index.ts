@@ -33,6 +33,16 @@ function createRawTsLSPlugin({
 }: {
   typescript: typeof TS;
 }): TS.server.PluginModule {
+  // Typescript's source code is absolute hell, so we have to do this hack in order to register new quick fixes for custom diagnostics
+  // I found this by complete accident when looking at the Effect LSP code a day prior to implementing this, so thank you 🙏 (https://github.com/Effect-TS/language-service/blob/main/src/index.ts#L39)
+  // Also if your quick fixes aren't getting updated, do a full "Reload Window", not just a "Restart TS Server", because the former doesn't load them for some reason 🙃
+  try {
+    (ts as any).codefix.registerCodeFix({
+      errorCodes: CODE_FIX_DEFINITIONS.map(fix => fix.errorCode),
+      getCodeActions: () => []
+    });
+  } catch {}
+
   return {
     create: ({ languageService, languageServiceHost, project, serverHost, session }) => {
       if (languageService.__isRawTsLSPLoaded === true) return languageService;
@@ -49,16 +59,6 @@ function createRawTsLSPlugin({
           cleanupIntervalMs: RAW_TS_CACHE_CLEANUP_INTERVAL_MS
         })
       };
-
-      // Typescript's source code is absolute hell, so we have to do this hack in order to register new quick fixes for custom diagnostics
-      // I found this by complete accident when looking at the Effect LSP code a day prior to implementing this, so thank you 🙏 (https://github.com/Effect-TS/language-service/blob/main/src/index.ts#L39)
-      // Also if your quick fixes aren't getting updated, do a full "Reload Window", not just a "Restart TS Server", because the former doesn't load them for some reason 🙃
-      try {
-        (ts as any).codefix.registerCodeFix({
-          errorCodes: CODE_FIX_DEFINITIONS.map(fix => fix.errorCode),
-          getCodeActions: () => []
-        });
-      } catch {}
 
       const newLanguageService = createObjectWithOverrides(
         languageService,

@@ -196,9 +196,7 @@ const RAW_TYPE_DESCRIPTOR_MAP = new Map([
   ]
 ]);
 
-const isRawType = (sourceFile: TS.SourceFile, type: TS.Type) =>
-  getCachedRawTypeAnalysis(sourceFile, type.id) != null ||
-  type.getProperty(RAW_TYPE_INFO_PROPERTY_NAME) != null;
+const isRawType = (type: TS.Type) => type.getProperty(RAW_TYPE_INFO_PROPERTY_NAME) != null;
 
 function analyzeVoidTypeInfo(
   ts: typeof TS,
@@ -594,7 +592,7 @@ function analyzeRawType(
         typeChecker.getTypeOfSymbol(infoSymbol),
         circularDescriptors
       )
-    : analysisWithError(`Not a raw type!`, RAW_TS_DIAGNOSTIC_CODES.NOT_A_RAW_TYPE);
+    : analysisWithError(`This type is not a raw type!`, RAW_TS_DIAGNOSTIC_CODES.NOT_A_RAW_TYPE);
 
   if (analysis.descriptor == null)
     analysis = analysisWithError(

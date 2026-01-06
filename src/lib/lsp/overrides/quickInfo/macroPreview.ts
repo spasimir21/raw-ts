@@ -22,7 +22,6 @@ function getTypeDescriptorOfPreview(
     .replace(/\[Circular\s+\*(\d+)\]/g, 'desc$1')
     .replace(/kind:\s+(\d+),/g, (_, n) => `kind: RawTypeKind.${RawTypeKind[n]},`);
 
-  // return `\`\`\`js\n${code}\n\`\`\``;
   return code;
 }
 

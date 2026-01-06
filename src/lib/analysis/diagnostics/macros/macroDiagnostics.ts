@@ -1,5 +1,8 @@
 import { getDiagnosticForTypeDescriptorOfMacro } from './typeDescriptorOf';
+import { getDiagnosticForReferenceCastMacro } from './referenceCast';
+import { getDiagnosticForPointerCastMacro } from './pointerCast';
 import { getDiagnosticForAlignmentOfMacro } from './alignmentOf';
+import { getDiagnosticForAddressOfMacro } from './addressOf';
 import { getDiagnosticForOffsetOfMacro } from './offsetOf';
 import { RAW_TS_MACRO_NAMES } from '../../../constants';
 import { getDiagnosticForSizeOfMacro } from './sizeOf';
@@ -21,6 +24,12 @@ function getDiagnosticForMacro(
       return getDiagnosticForAlignmentOfMacro(ts, typeChecker, sourceFile, callNode);
     case RAW_TS_MACRO_NAMES.OFFSET_OF:
       return getDiagnosticForOffsetOfMacro(ts, typeChecker, sourceFile, callNode);
+    case RAW_TS_MACRO_NAMES.POINTER_CAST:
+      return getDiagnosticForPointerCastMacro(ts, typeChecker, sourceFile, callNode);
+    case RAW_TS_MACRO_NAMES.REFERENCE_CAST:
+      return getDiagnosticForReferenceCastMacro(ts, typeChecker, sourceFile, callNode);
+    case RAW_TS_MACRO_NAMES.ADDRESS_OF:
+      return getDiagnosticForAddressOfMacro(ts, typeChecker, sourceFile, callNode);
   }
 
   return null;

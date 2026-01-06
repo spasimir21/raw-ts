@@ -131,7 +131,7 @@ const getQuickInfoAtPositionLSOverride: LSOverrideFactory<'getQuickInfoAtPositio
     const type = typeChecker.getTypeAtLocation(
       ts.isTypeReferenceNode(node.parent) ? node.parent : node
     );
-    if (isRawType(sourceFile, type)) {
+    if (isRawType(type)) {
       const analysis = analyzeRawType(ts, sourceFile, typeChecker, type);
       if (analysis.descriptor == null) return quickInfo;
 

@@ -69,7 +69,8 @@ function transformMacro(
   typeChecker: TS.TypeChecker,
   ctx: TS.TransformationContext,
   callNode: TS.CallExpression,
-  node: TS.Identifier
+  node: TS.Identifier,
+  visit: (node: TS.Node) => TS.Node
 ): TS.Node {
   const diagnostic = getDiagnosticForMacro(ts, typeChecker, sourceFile, node, callNode);
   if (diagnostic != null) {
@@ -86,9 +87,13 @@ function transformMacro(
       return transformAlignmentOfMacro(sourceFile, ts, typeChecker, ctx, callNode);
     case RAW_TS_MACRO_NAMES.OFFSET_OF:
       return transformOffsetOfMacro(sourceFile, ts, typeChecker, ctx, callNode);
+    case RAW_TS_MACRO_NAMES.POINTER_CAST:
+    case RAW_TS_MACRO_NAMES.REFERENCE_CAST:
+    case RAW_TS_MACRO_NAMES.ADDRESS_OF:
+      return ts.visitNode(callNode.arguments[0]!, visit);
   }
 
-  return node;
+  return ts.visitEachChild(callNode, visit, ctx);
 }
 
 export { transformMacro };
