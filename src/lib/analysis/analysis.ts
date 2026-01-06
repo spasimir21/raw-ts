@@ -507,7 +507,7 @@ function analyzeRawStructTypeInfo(
 
   circularDescriptors.delete(type.id);
 
-  if (offset % descriptor.alignment !== 0) {
+  if (!descriptor.hasDynamicSize && offset % descriptor.alignment !== 0) {
     const paddingSize = descriptor.alignment - (offset % descriptor.alignment);
 
     if (lastFieldDescriptor != null) lastFieldDescriptor.paddingSize = paddingSize;

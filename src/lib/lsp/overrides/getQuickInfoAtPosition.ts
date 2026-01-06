@@ -1,6 +1,7 @@
 import { getDisableRawPragmaSpanFromFile } from '../../analysis/disableRawPragma';
 import { getMacroPreviewForQuickInfo } from './quickInfo/macroPreview';
 import { analyzeRawType, isRawType } from '../../analysis/analysis';
+import { getStructPreview } from './quickInfo/structPreview';
 import { LSOverrideFactory } from '../LSOverrideContext';
 import { getNodeAtPosition } from '../getNodeAtPosition';
 import { RawTypeKind } from '../../types';
@@ -151,7 +152,16 @@ const getQuickInfoAtPositionLSOverride: LSOverrideFactory<'getQuickInfoAtPositio
             kind: 'text'
           },
           ...quickInfo.displayParts
-        ]
+        ],
+        documentation:
+          descriptor.kind === RawTypeKind.Struct
+            ? [
+                {
+                  text: `\`\`\`text\n${getStructPreview(descriptor)}\n\`\`\``,
+                  kind: 'text'
+                }
+              ]
+            : []
       };
     }
 

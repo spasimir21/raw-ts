@@ -2,6 +2,10 @@ import { generateErrorCodes } from './utils/errorCodes';
 
 const RAW_TS_IMPORT_PATH = './lib'; // TODO: Use real raw-ts import path
 
+const RAW_TS_RUNTIME_IMPORT_PATH = `${RAW_TS_IMPORT_PATH}/runtime`;
+
+const RAW_TS_RUNTIME_OBJECT = 'RAW$';
+
 const RAW_TS_DIAGNOSTIC_CODES = generateErrorCodes(69420, [
   'MISSING_USE_RAW_DIRECTIVE',
   'CONFLICTING_DIRECTIVE_AND_PRAGMA',
@@ -12,7 +16,9 @@ const RAW_TS_DIAGNOSTIC_CODES = generateErrorCodes(69420, [
   'INVALID_PROPERTY_ACCESS'
 ]);
 
+const RAW_TS_RUNTIME_IMPORT_PATH_PRAGMA = '@raw-ts-runtime-import-path';
 const DISABLE_RAW_TS_PRAGMA = '@disable-raw';
+
 const USE_RAW_TS_DIRECTIVE = 'use raw';
 
 const USE_RAW_TS_EXPORT_SYMBOL = '__USE_RAW$$';
@@ -36,7 +42,10 @@ const RAW_TS_MACROS_NAME_SET = new Set(Object.values(RAW_TS_MACRO_NAMES));
 
 export {
   RAW_TS_IMPORT_PATH,
+  RAW_TS_RUNTIME_IMPORT_PATH,
+  RAW_TS_RUNTIME_OBJECT,
   RAW_TS_DIAGNOSTIC_CODES,
+  RAW_TS_RUNTIME_IMPORT_PATH_PRAGMA,
   DISABLE_RAW_TS_PRAGMA,
   USE_RAW_TS_DIRECTIVE,
   USE_RAW_TS_EXPORT_SYMBOL,

@@ -1,9 +1,10 @@
 import { getDiagnosticForMacro } from '../../analysis/diagnostics/macros/macroDiagnostics';
 import { createErrorExpression, createExpressionForJSValue } from './helpers';
+import { transformPropertyAccess } from './transformPropertyAccess';
 import { analyzeRawType } from '../../analysis/analysis';
 import { RAW_TS_MACRO_NAMES } from '../../constants';
-import type TS from 'typescript';
 import { StructDescriptor } from '../../types';
+import type TS from 'typescript';
 
 function transformTypeDescriptorOfMacro(
   sourceFile: TS.SourceFile,
@@ -63,6 +64,26 @@ function transformOffsetOfMacro(
   );
 }
 
+function transformAddressOfMacro(
+  sourceFile: TS.SourceFile,
+  ts: typeof TS,
+  typeChecker: TS.TypeChecker,
+  ctx: TS.TransformationContext,
+  node: TS.CallExpression,
+  visit: (node: TS.Node) => TS.Node
+): TS.Node {
+  let argumentNode = node.arguments[0];
+  if (argumentNode == null) return node;
+
+  while (ts.isAsExpression(argumentNode) || ts.isNonNullExpression(argumentNode))
+    argumentNode = argumentNode.expression;
+
+  if (ts.isPropertyAccessExpression(argumentNode) || ts.isElementAccessExpression(argumentNode))
+    return transformPropertyAccess(sourceFile, ts, typeChecker, ctx, argumentNode, visit, false);
+
+  return ts.visitNode(argumentNode, visit);
+}
+
 function transformMacro(
   sourceFile: TS.SourceFile,
   ts: typeof TS,
@@ -87,9 +108,10 @@ function transformMacro(
       return transformAlignmentOfMacro(sourceFile, ts, typeChecker, ctx, callNode);
     case RAW_TS_MACRO_NAMES.OFFSET_OF:
       return transformOffsetOfMacro(sourceFile, ts, typeChecker, ctx, callNode);
+    case RAW_TS_MACRO_NAMES.ADDRESS_OF:
+      return transformAddressOfMacro(sourceFile, ts, typeChecker, ctx, callNode, visit);
     case RAW_TS_MACRO_NAMES.POINTER_CAST:
     case RAW_TS_MACRO_NAMES.REFERENCE_CAST:
-    case RAW_TS_MACRO_NAMES.ADDRESS_OF:
       return ts.visitNode(callNode.arguments[0]!, visit);
   }
 

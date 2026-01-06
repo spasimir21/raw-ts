@@ -21,6 +21,17 @@ function getPropertyAccessDiagnostic(
     };
 
   const type = typeChecker.getTypeAtLocation(node.expression);
+
+  if (node.questionDotToken != null && type.isUnion() && type.types.some(isRawType))
+    return {
+      category: ts.DiagnosticCategory.Error,
+      code: RAW_TS_DIAGNOSTIC_CODES.INVALID_PROPERTY_ACCESS,
+      file: sourceFile,
+      start: node.getStart(),
+      length: node.getWidth(),
+      messageText: `Optional chaining cannot be used with raw types!`
+    };
+
   if (!isRawType(type)) return null;
 
   const analysis = analyzeRawType(ts, sourceFile, typeChecker, type);
@@ -50,14 +61,18 @@ function getPropertyAccessDiagnostic(
       };
 
     const elementType = typeChecker.getTypeAtLocation(node.argumentExpression);
-    if ((elementType.flags & ts.TypeFlags.NumberLike) === 0)
+    if (
+      (elementType.flags & ts.TypeFlags.NumberLike) === 0 ||
+      (elementType.isNumberLiteral() &&
+        (elementType.value < 0 || !Number.isInteger(elementType.value)))
+    )
       return {
         category: ts.DiagnosticCategory.Error,
         code: RAW_TS_DIAGNOSTIC_CODES.INVALID_PROPERTY_ACCESS,
         file: sourceFile,
         start: node.argumentExpression.getStart(),
         length: node.argumentExpression.getWidth(),
-        messageText: `Raw arrays can only be indexed using integers!`
+        messageText: `Raw arrays can only be indexed using positive integers!`
       };
 
     if (isInAssignment && !descriptor.elementDescriptor.isValueType)

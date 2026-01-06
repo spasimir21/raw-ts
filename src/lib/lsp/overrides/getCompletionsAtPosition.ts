@@ -1,5 +1,5 @@
+import { DISABLE_RAW_TS_PRAGMA, RAW_TS_RUNTIME_IMPORT_PATH_PRAGMA } from '../../constants';
 import { LSOverrideFactory } from '../LSOverrideContext';
-import { DISABLE_RAW_TS_PRAGMA } from '../../constants';
 
 const getCompletionsAtPositionLSOverride: LSOverrideFactory<'getCompletionsAtPosition'> = ({
   ts
@@ -21,8 +21,6 @@ const getCompletionsAtPositionLSOverride: LSOverrideFactory<'getCompletionsAtPos
     )
       return completions;
 
-    languageService.getCompletionEntryDetails;
-
     return {
       ...(completions ?? {}),
       isGlobalCompletion: false,
@@ -34,6 +32,15 @@ const getCompletionsAtPositionLSOverride: LSOverrideFactory<'getCompletionsAtPos
           name: DISABLE_RAW_TS_PRAGMA,
           kind: ts.ScriptElementKind.unknown,
           insertText: DISABLE_RAW_TS_PRAGMA.slice(1),
+          sortText: '0',
+          labelDetails: {
+            description: 'pragma'
+          }
+        },
+        {
+          name: RAW_TS_RUNTIME_IMPORT_PATH_PRAGMA,
+          kind: ts.ScriptElementKind.unknown,
+          insertText: RAW_TS_RUNTIME_IMPORT_PATH_PRAGMA.slice(1),
           sortText: '0',
           labelDetails: {
             description: 'pragma'

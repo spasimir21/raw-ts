@@ -1,8 +1,10 @@
 'use raw';
 
 import {
+  Bool,
   Float32,
   Float64,
+  JSPointer,
   RawArray,
   RawPointer,
   Struct,
@@ -27,16 +29,21 @@ enum IDK {
   nice
 }
 
-type A = Struct<{
-  id: UInt32<1 | 2 | 3>;
-  bool: Float64;
-  children: RawArray<RawPointer<A>>;
+type B = Struct<{
+  cool: UInt32;
+  id: JSPointer<string>;
 }>;
 
-typeDescriptorOf$<A>();
-
-// const size = offsetOf$<A, 'children'>();
-
-// console.dir(size, { depth: null });
+type A = Struct<{
+  bool: Float64;
+  id: UInt32<1 | 2 | 3>;
+  child: B;
+  children: RawArray<RawPointer<Bool>>;
+}>;
 
 const a: A = null as any;
+
+const n: number = 5;
+
+a.children[5]!.value$;
+addressOf$(a.children[5]!.value$);

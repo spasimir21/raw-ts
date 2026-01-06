@@ -51,9 +51,12 @@ function createExpressionForJSValue(
       case 'boolean':
         return value ? f.createTrue() : f.createFalse();
       case 'bigint':
-        return f.createBigIntLiteral(value.toString());
+        return f.createCallExpression(f.createIdentifier('BigInt'), undefined, [
+          f.createStringLiteral(value.toString())
+        ]);
       case 'number':
-        return f.createNumericLiteral(value);
+        const literal = f.createNumericLiteral(Math.abs(value));
+        return value >= 0 ? literal : f.createPrefixMinus(literal);
       case 'string':
         return f.createStringLiteral(value);
       default:

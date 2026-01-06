@@ -1,5 +1,6 @@
 import { RAW_TYPE_INFO_PROPERTY_NAME, USE_RAW_TS_DIRECTIVE } from '../constants';
 import {
+  Alignment,
   RawPointer,
   RawPointerTypeInfo,
   RawTypeContainer,
@@ -19,7 +20,7 @@ const typeDescriptorOf$ = <T extends RawTypeContainer>(): RawTypeDescriptorOf<T>
 
 const sizeOf$ = <T extends RawTypeContainer>(): number => throwMacroError('sizeOf$');
 
-const alignmentOf$ = <T extends RawTypeContainer>(): number => throwMacroError('alignmentOf$');
+const alignmentOf$ = <T extends RawTypeContainer>(): Alignment => throwMacroError('alignmentOf$');
 
 const offsetOf$ = <
   T extends RawTypeContainer<StructTypeInfo>,
