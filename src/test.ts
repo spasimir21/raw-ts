@@ -1,49 +1,11 @@
 'use raw';
 
-import {
-  Bool,
-  Float32,
-  Float64,
-  JSPointer,
-  RawArray,
-  RawPointer,
-  Struct,
-  UInt32,
-  UInt8,
-  Union,
-  Void
-} from './lib/types';
-import {
-  addressOf$,
-  alignmentOf$,
-  offsetOf$,
-  pointerCast$,
-  referenceCast$,
-  sizeOf$,
-  typeDescriptorOf$
-} from './lib/macros';
+import { initializeMemory, M_U32, malloc } from './lib/runtime';
 
-enum IDK {
-  test,
-  cool,
-  nice
-}
+initializeMemory({
+  initialRawMemorySize: 1024 * 5
+});
 
-type B = Struct<{
-  cool: UInt32;
-  id: JSPointer<string>;
-}>;
+malloc(1);
 
-type A = Struct<{
-  bool: Float64;
-  id: UInt32<1 | 2 | 3>;
-  child: B;
-  children: RawArray<RawPointer<Bool>>;
-}>;
-
-const a: A = null as any;
-
-const n: number = 5;
-
-a.children[5]!.value$;
-addressOf$(a.children[5]!.value$);
+console.log(M_U32);

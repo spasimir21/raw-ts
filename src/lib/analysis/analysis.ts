@@ -398,8 +398,8 @@ function analyzeRawUnionTypeInfo(
 
     const variantDescriptor = variantAnalysis.descriptor;
 
+    if (variantDescriptor.size > descriptor.size) descriptor.size = variantDescriptor.size;
     if (variantDescriptor.hasDynamicSize) descriptor.hasDynamicSize = true;
-    else if (variantDescriptor.size > descriptor.size) descriptor.size = variantDescriptor.size;
 
     if (variantDescriptor.alignment > descriptor.alignment)
       descriptor.alignment = variantDescriptor.alignment;

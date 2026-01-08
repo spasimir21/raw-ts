@@ -221,7 +221,11 @@ function transformPropertyAccess(
   const chain = chainOrError;
   const f = ctx.factory;
 
-  let expression = ts.visitEachChild(chain.expression, visit, ctx);
+  let expression =
+    chain.expression === node
+      ? ts.visitEachChild(chain.expression, visit, ctx)
+      : (ts.visitNode(chain.expression, visit) as TS.Expression);
+
   let offset = 0;
 
   const resetOffsetAndUpdateExpression = () => {
@@ -255,7 +259,7 @@ function transformPropertyAccess(
           expression,
           f.createToken(ts.SyntaxKind.PlusToken),
           f.createBinaryExpression(
-            operation.indexExpression,
+            ts.visitNode(operation.indexExpression, visit) as TS.Expression,
             f.createToken(ts.SyntaxKind.AsteriskToken),
             f.createNumericLiteral(operation.elementSize)
           )
