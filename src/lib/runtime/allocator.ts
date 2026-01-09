@@ -93,6 +93,55 @@ function initializeAllocator() {
   IS_ALLOCATOR_INITIALIZED = true;
 }
 
+function validateFreeLists() {
+  for (let i = 0; i < N_BUCKETS; i++) {
+    const bucket = metadata.buckets[i];
+
+    let valid = true;
+
+    if (
+      bucket.firstFreeBlock !== NULL_PTR &&
+      bucket.firstFreeBlock.value$.body.freeListElement.prev !== NULL_PTR
+    )
+      valid = false;
+
+    let currentBlock = bucket.firstFreeBlock;
+    while (currentBlock !== NULL_PTR) {
+      if ((currentBlock.value$.header.selfDescriptor & 0b111) !== 0) {
+        valid = false;
+        break;
+      }
+
+      const newBlock = currentBlock.value$.body.freeListElement.next;
+      if (newBlock === NULL_PTR) break;
+
+      if (newBlock.value$.body.freeListElement.prev !== currentBlock) {
+        valid = false;
+        break;
+      }
+      currentBlock = newBlock;
+    }
+
+    if (currentBlock !== bucket.lastFreeBlock) valid = false;
+
+    if (valid) continue;
+
+    currentBlock = bucket.firstFreeBlock;
+    while (currentBlock !== NULL_PTR) {
+      console.log(
+        currentBlock.value$.body.freeListElement.prev,
+        currentBlock,
+        currentBlock.value$.body.freeListElement.next
+      );
+      currentBlock = currentBlock.value$.body.freeListElement.next;
+    }
+
+    console.log(bucket.lastFreeBlock);
+
+    throw new Error();
+  }
+}
+
 function getBucketIndexForWordSize(wordSize: number) {
   const bucketClass = 32 - Math.clz32(((wordSize + 31) >>> 5) - 1);
 
@@ -131,17 +180,19 @@ function findFreeBlockForSize(wordSize: number): RawPointer<Block> {
       if (filledBucket !== NULL_PTR) return filledBucket;
     }
 
-    filledSlots = (filledSlots << idealBucketSlot) >>> idealBucketSlot;
+    if (idealBucketSlot < 31) {
+      filledSlots = (filledSlots << (idealBucketSlot + 1)) >>> (idealBucketSlot + 1);
 
-    let firstFilledSlot = Math.clz32(filledSlots);
-    if (firstFilledSlot < 32)
-      return findFreeBlockForSizeInBucket(
-        metadata.buckets[(idealBucketClass << 5) + firstFilledSlot],
-        wordSize
-      );
+      let firstFilledSlot = Math.clz32(filledSlots);
+      if (firstFilledSlot < 32)
+        return findFreeBlockForSizeInBucket(
+          metadata.buckets[(idealBucketClass << 5) + firstFilledSlot],
+          wordSize
+        );
+    }
   }
 
-  filledBucketClasses = (filledBucketClasses << idealBucketClass) >>> idealBucketClass;
+  filledBucketClasses = (filledBucketClasses << (idealBucketClass + 1)) >>> (idealBucketClass + 1);
 
   const firstFilledBucketClass = Math.clz32(filledBucketClasses);
   if (firstFilledBucketClass > N_BUCKET_CLASSES) return NULL_PTR as RawPointer<Block>;
@@ -158,7 +209,7 @@ function findFreeBlockForSize(wordSize: number): RawPointer<Block> {
 
 function findFreeBlockForSizeInBucket(bucket: Bucket, wordSize: number): RawPointer<Block> {
   if (
-    bucket.lastFreeBlock !== NULL_PTR &&
+    bucket.lastFreeBlock === NULL_PTR ||
     wordSize > bucket.lastFreeBlock.value$.header.selfDescriptor >>> 3
   )
     return NULL_PTR as RawPointer<Block>;
@@ -200,6 +251,9 @@ function addBlockToFreeList(block: Block) {
   if (nextFreeBlock === NULL_PTR) {
     freeListElement.next = NULL_PTR as RawPointer<Block>;
     freeListElement.prev = bucket.lastFreeBlock;
+
+    if (bucket.lastFreeBlock !== NULL_PTR)
+      bucket.lastFreeBlock.value$.body.freeListElement.next = addressOf$(block);
 
     bucket.lastFreeBlock = addressOf$(block);
     if (bucket.firstFreeBlock === NULL_PTR) bucket.firstFreeBlock = addressOf$(block);
@@ -381,7 +435,8 @@ function malloc<T extends RawTypeContainer>(
   freeBlock.header.selfDescriptor = (freeBlock.header.selfDescriptor | 0b1) as UInt32;
   updateNextBlocksPrevDescriptor(freeBlock);
 
-  if ((freeBlock.header.selfDescriptor >>> 3) - wordSize >= 2) splitBlock(freeBlock, wordSize);
+  if ((freeBlock.header.selfDescriptor >>> 3) - wordSize >= sizeOf$<Block>() >>> 3)
+    splitBlock(freeBlock, wordSize);
 
   if (zeroAllocated)
     M_U8.fill(
@@ -393,13 +448,14 @@ function malloc<T extends RawTypeContainer>(
   return addressOf$(freeBlock.body) as RawPointer<T>;
 }
 
-function realloc(pointer: RawPointer<RawTypeContainer>, newSize: number): boolean {
-  // TODO
+function mresize(pointer: RawPointer<RawTypeContainer>, newSize: number): boolean {
+  // TODO: Also allow shrink
   return false;
 }
 
 function free(pointer: RawPointer<RawTypeContainer>): void {
   const block = pointerCast$<Block>(pointer - offsetOf$<Block, 'body'>()).value$;
+  if ((block.header.selfDescriptor & 0b111) !== 1) return;
 
   block.header.selfDescriptor = (block.header.selfDescriptor & ~0b1) as UInt32;
   updateNextBlocksPrevDescriptor(block);
@@ -415,4 +471,4 @@ function getMemoryAnalysis(): MemoryAnalysis {
   return {};
 }
 
-export { malloc, realloc, free, MemoryAnalysis, getMemoryAnalysis };
+export { validateFreeLists, malloc, mresize, free, MemoryAnalysis, getMemoryAnalysis };

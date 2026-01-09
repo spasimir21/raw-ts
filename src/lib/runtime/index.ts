@@ -21,7 +21,5 @@ export {
   M_F16,
   M_F32,
   M_F64,
-  M_JS,
-  RAW_MEMORY_INFO,
-  JS_VALUE_MEMORY_INFO
+  M_JS
 } from './memory';
