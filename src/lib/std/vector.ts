@@ -23,6 +23,9 @@ type UntypedVector = Struct<{
 const VECTOR_SIZE = sizeOf$<UntypedVector>();
 
 function vector_init(typedVector: Vector<RawTypeContainer>, valueSize: number, capacity: number): void {
+  if (!Number.isInteger(valueSize) || valueSize <= 0)
+    throw new Error(`${valueSize} is not a valid valueSize for vector!`);
+
   const vector = typedVector as any as UntypedVector;
 
   vector.length = 0 as UInt32;
@@ -69,7 +72,7 @@ function vector_scale(typedVector: Vector<RawTypeContainer>, capacity: number): 
   const oldData = vector.data;
   vector.data = malloc(newSize);
 
-  M_U8.copyWithin(vector.data, oldData, oldData + oldSize);
+  M_U8.copyWithin(vector.data, oldData, oldData + Math.min(oldSize, newSize));
 
   free(oldData);
 }
