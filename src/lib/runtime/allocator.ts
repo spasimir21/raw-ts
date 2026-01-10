@@ -39,6 +39,7 @@ import { NULL_PTR } from './nullptr';
 const N_BUCKET_CLASSES = 13; // Excluding the special > 1MB bucket, as it is only a single bucket, not an entire class
 const N_BUCKETS = 417; // N_BUCKET_CLASSES * 32 + 1; the extra bucket is the > 1MB bucket
 
+const LARGEST_BUCKET_CLASS = N_BUCKET_CLASSES;
 const LARGEST_BUCKET_INDEX = N_BUCKETS - 1;
 
 type BlockHeader = Struct<{
@@ -109,7 +110,7 @@ function initializeAllocator() {
 function getBucketIndexForWordSize(wordSize: number) {
   const bucketClass = 32 - Math.clz32(((wordSize + 31) >>> 5) - 1);
 
-  if (bucketClass >= N_BUCKET_CLASSES) return LARGEST_BUCKET_INDEX;
+  if (bucketClass >= LARGEST_BUCKET_CLASS) return LARGEST_BUCKET_INDEX;
   if (bucketClass === 0) return wordSize - 1;
 
   const bucketClassShift = bucketClass - 1;
@@ -156,8 +157,8 @@ function findFreeBlockForSize(wordSize: number): RawPointer<Block> {
   filledBucketClasses = (filledBucketClasses << (idealBucketClass + 1)) >>> (idealBucketClass + 1);
 
   const firstFilledBucketClass = Math.clz32(filledBucketClasses);
-  if (firstFilledBucketClass > N_BUCKET_CLASSES) return NULL_PTR as RawPointer<Block>;
-  if (firstFilledBucketClass === N_BUCKET_CLASSES)
+  if (firstFilledBucketClass > LARGEST_BUCKET_CLASS) return NULL_PTR as RawPointer<Block>;
+  if (firstFilledBucketClass === LARGEST_BUCKET_CLASS)
     return findFreeBlockForSizeInBucket(metadata.buckets[LARGEST_BUCKET_INDEX], wordSize);
 
   const firstFilledSlot = Math.clz32(metadata.filledSlotsForClass[firstFilledBucketClass]);
@@ -190,7 +191,7 @@ function addBlockToFreeList(block: Block) {
   const bucketClass = bucketIndex >>> 5;
   const bucketSlot = bucketIndex & 0b11111;
 
-  if (bucketClass < N_BUCKET_CLASSES) {
+  if (bucketClass < LARGEST_BUCKET_CLASS) {
     const filledSlotsForClass = addressOf$(metadata.filledSlotsForClass[bucketClass]);
     // prettier-ignore
     filledSlotsForClass.value$ = (filledSlotsForClass.value$ | (1 << (31 - bucketSlot))) as UInt32;
@@ -476,14 +477,14 @@ interface BucketClassAnalysis {
 function getBucketClassAnalysis(bucketClassIndex: number, nBuckets: number) {
   const smallestBucketSize = bucketClassIndex === 0 ? 8 : (256 << (bucketClassIndex - 1)) + 8;
   const largestBucketSize =
-    bucketClassIndex === N_BUCKET_CLASSES ? smallestBucketSize : 256 << bucketClassIndex;
+    bucketClassIndex === LARGEST_BUCKET_CLASS ? smallestBucketSize : 256 << bucketClassIndex;
 
   const analysis: BucketClassAnalysis = {
     nBuckets,
     smallestBucketSize,
     largestBucketSize,
     bucketSizeStep:
-      bucketClassIndex === N_BUCKET_CLASSES ? 0 : (largestBucketSize - smallestBucketSize + 8) / 32,
+      bucketClassIndex === LARGEST_BUCKET_CLASS ? 0 : (largestBucketSize - smallestBucketSize + 8) / 32,
     nFreeBlocks: 0,
     smallestFreeBlockSize: Infinity,
     largestFreeBlockSize: 0,
@@ -557,7 +558,7 @@ interface MemoryAnalysis {
 
 function getMemoryAnalysis(): MemoryAnalysis {
   const bucketClasses: BucketClassAnalysis[] = Array.from({ length: N_BUCKET_CLASSES + 1 }, (_, i) =>
-    getBucketClassAnalysis(i, i < N_BUCKET_CLASSES ? 32 : 1)
+    getBucketClassAnalysis(i, i < LARGEST_BUCKET_CLASS ? 32 : 1)
   );
 
   const totalFreeSize = bucketClasses.reduce((s, c) => s + c.totalFreeSize, 0);
