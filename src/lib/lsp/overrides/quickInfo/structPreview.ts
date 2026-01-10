@@ -1,6 +1,8 @@
 import { StructDescriptor } from '../../../types';
 
 function getStructPreview(descriptor: StructDescriptor): string {
+  if (Object.keys(descriptor.fieldDescriptors).length === 0) return '';
+
   const lines: string[] = [];
 
   for (const field of Object.values(descriptor.fieldDescriptors)) {
@@ -20,8 +22,7 @@ function getStructPreview(descriptor: StructDescriptor): string {
     const leftPadding = Math.floor((maxLineSize - line.length) / 2);
     const rightPadding = maxLineSize - line.length - leftPadding;
 
-    preview +=
-      '\n|' + ' '.repeat(leftPadding) + line + ' '.repeat(rightPadding) + '|\n' + separator;
+    preview += '\n|' + ' '.repeat(leftPadding) + line + ' '.repeat(rightPadding) + '|\n' + separator;
   }
 
   return preview;

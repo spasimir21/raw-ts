@@ -371,7 +371,12 @@ function expand() {
 }
 
 function validateBlock(block: Block): boolean {
-  if ((addressOf$(block) & 0b111) !== 0 || (block.header.selfDescriptor & 0b110) !== 0) return false;
+  if (
+    addressOf$(block) < metadata.firstBlock ||
+    (addressOf$(block) & 0b111) !== 0 ||
+    (block.header.selfDescriptor & 0b110) !== 0
+  )
+    return false;
 
   if (metadata.firstBlock !== addressOf$(block)) {
     const prevBlock = pointerCast$<Block>(
@@ -400,7 +405,10 @@ function validateBlock(block: Block): boolean {
   return true;
 }
 
-function malloc<T extends RawTypeContainer>(size: number, zeroAllocated: boolean = true): RawPointer<T> {
+function malloc<T extends RawTypeContainer = Void>(
+  size: number,
+  zeroAllocated: boolean = true
+): RawPointer<T> {
   if (typeof size !== 'number' || size <= 0 || !Number.isFinite(size) || !Number.isInteger(size))
     throw new Error(`${size} is not a valid size for malloc!`);
 
@@ -488,7 +496,6 @@ function mresize(
 function free(pointer: RawPointer<RawTypeContainer>): void {
   const block = pointerCast$<Block>(pointer - offsetOf$<Block, 'body'>()).value$;
   if (!validateBlock(block) || (block.header.selfDescriptor & 0b111) !== 1) return;
-  console.log('free');
 
   block.header.selfDescriptor = (block.header.selfDescriptor & ~0b1) as UInt32;
   updateNextBlocksPrevDescriptor(block);

@@ -62,7 +62,7 @@ function formatByteSize(byteSize: number) {
 }
 
 function resizeMemory(newSize?: number) {
-  M.resize(newSize ?? Math.floor(M.byteLength * MEMORY_CONFIG.memoryScaleFactor));
+  M.resize(newSize ?? (Math.floor(M.byteLength * MEMORY_CONFIG.memoryScaleFactor) + 7) & ~0b111);
 
   console.log(`[RAW-TS] Memory resized to ${formatByteSize(M.byteLength)}.`);
 }
