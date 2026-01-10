@@ -42,6 +42,8 @@ const N_BUCKETS = 417; // N_BUCKET_CLASSES * 32 + 1; the extra bucket is the > 1
 const LARGEST_BUCKET_CLASS = N_BUCKET_CLASSES;
 const LARGEST_BUCKET_INDEX = N_BUCKETS - 1;
 
+const MIN_WORDS_FOR_BLOCK = sizeOf$<Block>() >>> 3;
+
 type BlockHeader = Struct<{
   selfDescriptor: UInt32; // bodyByteSize | (isFree ? 0 : 1)
   prevDescriptor: UInt32;
@@ -387,7 +389,7 @@ function malloc<T extends RawTypeContainer>(size: number, zeroAllocated: boolean
   freeBlock.header.selfDescriptor = (freeBlock.header.selfDescriptor | 0b1) as UInt32;
   updateNextBlocksPrevDescriptor(freeBlock);
 
-  if ((freeBlock.header.selfDescriptor >>> 3) - wordSize >= sizeOf$<Block>() >>> 3)
+  if ((freeBlock.header.selfDescriptor >>> 3) - wordSize >= MIN_WORDS_FOR_BLOCK)
     splitBlock(freeBlock, wordSize);
 
   if (zeroAllocated)
@@ -415,11 +417,14 @@ function mresize(
   const newWordSize = (newSize + 7) >>> 3;
 
   if (newWordSize <= currentWordSize) {
-    if (currentWordSize - newWordSize >= sizeOf$<Block>() >>> 3) splitBlock(block, newWordSize);
+    if (currentWordSize - newWordSize >= MIN_WORDS_FOR_BLOCK) splitBlock(block, newWordSize);
     return true;
   }
 
-  if (metadata.lastBlock === addressOf$(block)) return false;
+  if (metadata.lastBlock === addressOf$(block)) {
+    expand();
+    return mresize(pointer, newSize, zeroAllocated);
+  }
 
   const nextBlock = pointerCast$<Block>(
     addressOf$(block.body) + (block.header.selfDescriptor & ~0b111)
@@ -445,7 +450,7 @@ function mresize(
       (addressOf$(block.body) >> 2) + (newWordSize << 1)
     );
 
-  if (mergedWordSize - newWordSize >= sizeOf$<Block>() >>> 3) splitBlock(block, newWordSize);
+  if (mergedWordSize - newWordSize >= MIN_WORDS_FOR_BLOCK) splitBlock(block, newWordSize);
 
   return true;
 }
@@ -564,13 +569,33 @@ function getMemoryAnalysis(): MemoryAnalysis {
   const totalFreeSize = bucketClasses.reduce((s, c) => s + c.totalFreeSize, 0);
   const totalUsedSize = M.byteLength - totalFreeSize;
 
+  let isCorrupted = false;
+
+  let block = metadata.firstBlock;
+  while (block !== NULL_PTR) {
+    const nextBlock = pointerCast$<Block>(
+      addressOf$(block.value$.body) + (block.value$.header.selfDescriptor & ~0b111)
+    );
+
+    if (M.byteLength - nextBlock < sizeOf$<Block>()) break;
+
+    if (nextBlock.value$.header.prevDescriptor !== block.value$.header.selfDescriptor) {
+      isCorrupted = true;
+      break;
+    }
+
+    block = nextBlock;
+  }
+
+  if (metadata.lastBlock !== block) isCorrupted = true;
+
   return {
     totalMemorySize: M.byteLength,
     totalUsedSize,
     totalFreeSize: M.byteLength - totalUsedSize,
     usedRatio: totalUsedSize / M.byteLength,
     bucketClasses,
-    isCorrupted: bucketClasses.some(c => c.isCorrupted)
+    isCorrupted: isCorrupted || bucketClasses.some(c => c.isCorrupted)
   };
 }
 
