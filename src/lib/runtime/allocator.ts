@@ -371,7 +371,7 @@ function expand() {
 }
 
 function validateBlock(block: Block): boolean {
-  if ((block.header.selfDescriptor & 0b110) !== 0) return false;
+  if ((addressOf$(block) & 0b111) !== 0 || (block.header.selfDescriptor & 0b110) !== 0) return false;
 
   if (metadata.firstBlock !== addressOf$(block)) {
     const prevBlock = pointerCast$<Block>(
@@ -488,6 +488,7 @@ function mresize(
 function free(pointer: RawPointer<RawTypeContainer>): void {
   const block = pointerCast$<Block>(pointer - offsetOf$<Block, 'body'>()).value$;
   if (!validateBlock(block) || (block.header.selfDescriptor & 0b111) !== 1) return;
+  console.log('free');
 
   block.header.selfDescriptor = (block.header.selfDescriptor & ~0b1) as UInt32;
   updateNextBlocksPrevDescriptor(block);
