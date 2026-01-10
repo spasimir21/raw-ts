@@ -370,6 +370,36 @@ function expand() {
   addBlockToFreeList(newBlock);
 }
 
+function validateBlock(block: Block): boolean {
+  if ((block.header.selfDescriptor & 0b110) !== 0) return false;
+
+  if (metadata.firstBlock !== addressOf$(block)) {
+    const prevBlock = pointerCast$<Block>(
+      addressOf$(block) - (block.header.prevDescriptor & ~0b111) - offsetOf$<Block, 'body'>()
+    );
+
+    if (
+      prevBlock < metadata.firstBlock ||
+      block.header.prevDescriptor !== prevBlock.value$.header.selfDescriptor ||
+      (block.header.prevDescriptor & 0b110) !== 0
+    )
+      return false;
+  }
+
+  if (metadata.lastBlock !== addressOf$(block)) {
+    const nextBlock = pointerCast$<Block>(addressOf$(block.body) + (block.header.selfDescriptor & ~0b111));
+
+    if (
+      M.byteLength - nextBlock < sizeOf$<Block>() ||
+      nextBlock.value$.header.prevDescriptor !== block.header.selfDescriptor ||
+      (nextBlock.value$.header.selfDescriptor & 0b110) !== 0
+    )
+      return false;
+  }
+
+  return true;
+}
+
 function malloc<T extends RawTypeContainer>(size: number, zeroAllocated: boolean = true): RawPointer<T> {
   if (typeof size !== 'number' || size <= 0 || !Number.isFinite(size) || !Number.isInteger(size))
     throw new Error(`${size} is not a valid size for malloc!`);
@@ -411,7 +441,7 @@ function mresize(
     throw new Error(`${newSize} is not a valid size for mresize!`);
 
   const block = pointerCast$<Block>(pointer - offsetOf$<Block, 'body'>()).value$;
-  if ((block.header.selfDescriptor & 0b111) !== 1) return false;
+  if (!validateBlock(block) || (block.header.selfDescriptor & 0b111) !== 1) return false;
 
   const currentWordSize = block.header.selfDescriptor >>> 3;
   const newWordSize = (newSize + 7) >>> 3;
@@ -457,7 +487,7 @@ function mresize(
 
 function free(pointer: RawPointer<RawTypeContainer>): void {
   const block = pointerCast$<Block>(pointer - offsetOf$<Block, 'body'>()).value$;
-  if ((block.header.selfDescriptor & 0b111) !== 1) return;
+  if (!validateBlock(block) || (block.header.selfDescriptor & 0b111) !== 1) return;
 
   block.header.selfDescriptor = (block.header.selfDescriptor & ~0b1) as UInt32;
   updateNextBlocksPrevDescriptor(block);
