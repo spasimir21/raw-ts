@@ -4,7 +4,7 @@
 
 import { RawArray, RawPointer, RawTypeContainer, Struct, UInt32, Union, Void } from '../types';
 import { addressOf$, offsetOf$, pointerCast$, sizeOf$ } from '../macros';
-import { M, M_U8, resizeRawMemory } from './memory';
+import { M, M_U32, resizeMemory } from './memory';
 import { NULL_PTR } from './nullptr';
 
 /*
@@ -76,6 +76,19 @@ type AllocatorMetadata = Struct<{
 
 let IS_ALLOCATOR_INITIALIZED = false;
 
+const MEMORY_INFO = {
+  totalFreeSize: 0,
+  get totalMemorySize() {
+    return M.byteLength;
+  },
+  get totalUsedSize() {
+    return M.byteLength - this.totalFreeSize;
+  },
+  get usedRatio() {
+    return 1 - this.totalFreeSize / M.byteLength;
+  }
+};
+
 const metadata = pointerCast$<AllocatorMetadata>(0).value$;
 
 function initializeAllocator() {
@@ -91,55 +104,6 @@ function initializeAllocator() {
   addBlockToFreeList(firstBlock);
 
   IS_ALLOCATOR_INITIALIZED = true;
-}
-
-function validateFreeLists() {
-  for (let i = 0; i < N_BUCKETS; i++) {
-    const bucket = metadata.buckets[i];
-
-    let valid = true;
-
-    if (
-      bucket.firstFreeBlock !== NULL_PTR &&
-      bucket.firstFreeBlock.value$.body.freeListElement.prev !== NULL_PTR
-    )
-      valid = false;
-
-    let currentBlock = bucket.firstFreeBlock;
-    while (currentBlock !== NULL_PTR) {
-      if ((currentBlock.value$.header.selfDescriptor & 0b111) !== 0) {
-        valid = false;
-        break;
-      }
-
-      const newBlock = currentBlock.value$.body.freeListElement.next;
-      if (newBlock === NULL_PTR) break;
-
-      if (newBlock.value$.body.freeListElement.prev !== currentBlock) {
-        valid = false;
-        break;
-      }
-      currentBlock = newBlock;
-    }
-
-    if (currentBlock !== bucket.lastFreeBlock) valid = false;
-
-    if (valid) continue;
-
-    currentBlock = bucket.firstFreeBlock;
-    while (currentBlock !== NULL_PTR) {
-      console.log(
-        currentBlock.value$.body.freeListElement.prev,
-        currentBlock,
-        currentBlock.value$.body.freeListElement.next
-      );
-      currentBlock = currentBlock.value$.body.freeListElement.next;
-    }
-
-    console.log(bucket.lastFreeBlock);
-
-    throw new Error();
-  }
 }
 
 function getBucketIndexForWordSize(wordSize: number) {
@@ -172,10 +136,7 @@ function findFreeBlockForSize(wordSize: number): RawPointer<Block> {
 
     // Ideal bucket slot is filled
     if ((filledSlots & (1 << (31 - idealBucketSlot))) !== 0) {
-      const filledBucket = findFreeBlockForSizeInBucket(
-        metadata.buckets[idealBucketIndex],
-        wordSize
-      );
+      const filledBucket = findFreeBlockForSizeInBucket(metadata.buckets[idealBucketIndex], wordSize);
 
       if (filledBucket !== NULL_PTR) return filledBucket;
     }
@@ -208,10 +169,7 @@ function findFreeBlockForSize(wordSize: number): RawPointer<Block> {
 }
 
 function findFreeBlockForSizeInBucket(bucket: Bucket, wordSize: number): RawPointer<Block> {
-  if (
-    bucket.lastFreeBlock === NULL_PTR ||
-    wordSize > bucket.lastFreeBlock.value$.header.selfDescriptor >>> 3
-  )
+  if (bucket.lastFreeBlock === NULL_PTR || wordSize > bucket.lastFreeBlock.value$.header.selfDescriptor >>> 3)
     return NULL_PTR as RawPointer<Block>;
 
   let currentBlock = bucket.firstFreeBlock;
@@ -224,6 +182,8 @@ function findFreeBlockForSizeInBucket(bucket: Bucket, wordSize: number): RawPoin
 }
 
 function addBlockToFreeList(block: Block) {
+  MEMORY_INFO.totalFreeSize += block.header.selfDescriptor & ~0b111;
+
   const wordSize = block.header.selfDescriptor >>> 3;
   const bucketIndex = getBucketIndexForWordSize(wordSize);
 
@@ -273,6 +233,8 @@ function addBlockToFreeList(block: Block) {
 }
 
 function removeBlockFromFreeList(block: Block): void {
+  MEMORY_INFO.totalFreeSize -= block.header.selfDescriptor & ~0b111;
+
   const wordSize = block.header.selfDescriptor >>> 3;
   const bucketIndex = getBucketIndexForWordSize(wordSize);
 
@@ -303,28 +265,23 @@ function removeBlockFromFreeList(block: Block): void {
     ? (NULL_PTR as RawPointer<UInt32>)
     : addressOf$(metadata.filledSlotsForClass[bucketClass]);
 
-  if (!isLastBucket)
-    filledSlots.value$ = (filledSlots.value$ & ~(1 << (31 - bucketSlot))) as UInt32;
+  if (!isLastBucket) filledSlots.value$ = (filledSlots.value$ & ~(1 << (31 - bucketSlot))) as UInt32;
 
   if (isLastBucket || filledSlots.value$ === 0)
-    metadata.filledBucketClasses = (metadata.filledBucketClasses &
-      ~(1 << (31 - bucketClass))) as UInt32;
+    metadata.filledBucketClasses = (metadata.filledBucketClasses & ~(1 << (31 - bucketClass))) as UInt32;
 }
 
 function updateNextBlocksPrevDescriptor(block: Block) {
   if (metadata.lastBlock === addressOf$(block)) return;
 
-  const nextBlock = pointerCast$<Block>(
-    addressOf$(block.body) + (block.header.selfDescriptor & ~0b111)
-  );
+  const nextBlock = pointerCast$<Block>(addressOf$(block.body) + (block.header.selfDescriptor & ~0b111));
 
   nextBlock.value$.header.prevDescriptor = block.header.selfDescriptor;
 }
 
 function mergeBlockWithNeighbours(initialBlock: Block): Block {
   const prevBlock =
-    metadata.firstBlock === addressOf$(initialBlock) ||
-    (initialBlock.header.prevDescriptor & 0b1) === 1
+    metadata.firstBlock === addressOf$(initialBlock) || (initialBlock.header.prevDescriptor & 0b1) === 1
       ? (NULL_PTR as RawPointer<Block>)
       : pointerCast$<Block>(
           addressOf$(initialBlock) -
@@ -335,9 +292,7 @@ function mergeBlockWithNeighbours(initialBlock: Block): Block {
   let nextBlock =
     metadata.lastBlock === addressOf$(initialBlock)
       ? (NULL_PTR as RawPointer<Block>)
-      : pointerCast$<Block>(
-          addressOf$(initialBlock.body) + (initialBlock.header.selfDescriptor & ~0b111)
-        );
+      : pointerCast$<Block>(addressOf$(initialBlock.body) + (initialBlock.header.selfDescriptor & ~0b111));
 
   if (nextBlock !== NULL_PTR && (nextBlock.value$.header.selfDescriptor & 0b1) === 1)
     nextBlock = NULL_PTR as RawPointer<Block>;
@@ -368,8 +323,7 @@ function splitBlock(block: Block, newWordSize: number) {
   const newByteSize = newWordSize << 3;
 
   const newBlock = pointerCast$<Block>(addressOf$(block.body) + newByteSize).value$;
-  const newBlockBodySize =
-    (block.header.selfDescriptor & ~0b111) - newByteSize - offsetOf$<Block, 'body'>();
+  const newBlockBodySize = (block.header.selfDescriptor & ~0b111) - newByteSize - offsetOf$<Block, 'body'>();
 
   // prettier-ignore
   block.header.selfDescriptor = (newByteSize | (block.header.selfDescriptor & 0b1)) as UInt32;
@@ -385,7 +339,7 @@ function splitBlock(block: Block, newWordSize: number) {
 }
 
 function expand() {
-  resizeRawMemory();
+  resizeMemory();
 
   const lastBlock = metadata.lastBlock.value$;
 
@@ -413,10 +367,7 @@ function expand() {
   addBlockToFreeList(newBlock);
 }
 
-function malloc<T extends RawTypeContainer>(
-  size: number,
-  zeroAllocated: boolean = true
-): RawPointer<T> {
+function malloc<T extends RawTypeContainer>(size: number, zeroAllocated: boolean = true): RawPointer<T> {
   if (typeof size !== 'number' || size <= 0 || !Number.isFinite(size) || !Number.isInteger(size))
     throw new Error(`${size} is not a valid size for malloc!`);
 
@@ -439,18 +390,63 @@ function malloc<T extends RawTypeContainer>(
     splitBlock(freeBlock, wordSize);
 
   if (zeroAllocated)
-    M_U8.fill(
+    M_U32.fill(
       0,
-      addressOf$(freeBlock.body),
-      addressOf$(freeBlock.body) + (freeBlock.header.selfDescriptor & ~0b111)
+      addressOf$(freeBlock.body) >> 2,
+      (addressOf$(freeBlock.body) + (freeBlock.header.selfDescriptor & ~0b111)) >> 2
     );
 
   return addressOf$(freeBlock.body) as RawPointer<T>;
 }
 
-function mresize(pointer: RawPointer<RawTypeContainer>, newSize: number): boolean {
-  // TODO: Also allow shrink
-  return false;
+function mresize(
+  pointer: RawPointer<RawTypeContainer>,
+  newSize: number,
+  zeroAllocated: boolean = true
+): boolean {
+  if (typeof newSize !== 'number' || newSize <= 0 || !Number.isFinite(newSize) || !Number.isInteger(newSize))
+    throw new Error(`${newSize} is not a valid size for mresize!`);
+
+  const block = pointerCast$<Block>(pointer - offsetOf$<Block, 'body'>()).value$;
+  if ((block.header.selfDescriptor & 0b111) !== 1) return false;
+
+  const currentWordSize = block.header.selfDescriptor >>> 3;
+  const newWordSize = (newSize + 7) >>> 3;
+
+  if (newWordSize <= currentWordSize) {
+    if (currentWordSize - newWordSize >= sizeOf$<Block>() >>> 3) splitBlock(block, newWordSize);
+    return true;
+  }
+
+  if (metadata.lastBlock === addressOf$(block)) return false;
+
+  const nextBlock = pointerCast$<Block>(
+    addressOf$(block.body) + (block.header.selfDescriptor & ~0b111)
+  ).value$;
+
+  const mergedWordSize =
+    currentWordSize + (offsetOf$<Block, 'body'>() >>> 3) + (nextBlock.header.selfDescriptor >>> 3);
+
+  if ((nextBlock.header.selfDescriptor & 0b111) !== 0 || mergedWordSize < newWordSize) return false;
+
+  removeBlockFromFreeList(nextBlock);
+
+  block.header.selfDescriptor = ((mergedWordSize << 3) | (block.header.selfDescriptor & 0b1)) as UInt32;
+
+  if (metadata.lastBlock === addressOf$(nextBlock)) metadata.lastBlock = addressOf$(block);
+
+  updateNextBlocksPrevDescriptor(block);
+
+  if (zeroAllocated)
+    M_U32.fill(
+      0,
+      (addressOf$(block.body) >> 2) + (currentWordSize << 1),
+      (addressOf$(block.body) >> 2) + (newWordSize << 1)
+    );
+
+  if (mergedWordSize - newWordSize >= sizeOf$<Block>() >>> 3) splitBlock(block, newWordSize);
+
+  return true;
 }
 
 function free(pointer: RawPointer<RawTypeContainer>): void {
@@ -464,11 +460,117 @@ function free(pointer: RawPointer<RawTypeContainer>): void {
   addBlockToFreeList(newBlock);
 }
 
-interface MemoryAnalysis {}
-
-function getMemoryAnalysis(): MemoryAnalysis {
-  // TODO
-  return {};
+interface BucketClassAnalysis {
+  nBuckets: number;
+  smallestBucketSize: number;
+  largestBucketSize: number;
+  bucketSizeStep: number;
+  nFreeBlocks: number;
+  smallestFreeBlockSize: number;
+  largestFreeBlockSize: number;
+  averageFreeBlockSize: number;
+  totalFreeSize: number;
+  isCorrupted: boolean;
 }
 
-export { validateFreeLists, malloc, mresize, free, MemoryAnalysis, getMemoryAnalysis };
+function getBucketClassAnalysis(bucketClassIndex: number, nBuckets: number) {
+  const smallestBucketSize = bucketClassIndex === 0 ? 8 : (256 << (bucketClassIndex - 1)) + 8;
+  const largestBucketSize =
+    bucketClassIndex === N_BUCKET_CLASSES ? smallestBucketSize : 256 << bucketClassIndex;
+
+  const analysis: BucketClassAnalysis = {
+    nBuckets,
+    smallestBucketSize,
+    largestBucketSize,
+    bucketSizeStep:
+      bucketClassIndex === N_BUCKET_CLASSES ? 0 : (largestBucketSize - smallestBucketSize + 8) / 32,
+    nFreeBlocks: 0,
+    smallestFreeBlockSize: Infinity,
+    largestFreeBlockSize: 0,
+    averageFreeBlockSize: 0,
+    totalFreeSize: 0,
+    isCorrupted: false
+  };
+
+  for (
+    let bucketIndex = bucketClassIndex * 32;
+    bucketIndex < bucketClassIndex * 32 + nBuckets;
+    bucketIndex++
+  ) {
+    const bucket = metadata.buckets[bucketIndex];
+
+    if (
+      (bucket.firstFreeBlock !== NULL_PTR &&
+        bucket.firstFreeBlock.value$.body.freeListElement.prev !== NULL_PTR) ||
+      (bucket.lastFreeBlock !== NULL_PTR &&
+        bucket.lastFreeBlock.value$.body.freeListElement.next !== NULL_PTR)
+    ) {
+      analysis.isCorrupted = true;
+      continue;
+    }
+
+    let currentBlock = bucket.firstFreeBlock;
+    while (currentBlock !== NULL_PTR) {
+      if ((currentBlock.value$.header.selfDescriptor & 0b111) !== 0) {
+        analysis.isCorrupted = true;
+        break;
+      }
+
+      analysis.nFreeBlocks++;
+      const blockSize = currentBlock.value$.header.selfDescriptor & ~0b111;
+
+      if (blockSize > analysis.largestFreeBlockSize) analysis.largestFreeBlockSize = blockSize;
+      if (blockSize < analysis.smallestFreeBlockSize) analysis.smallestFreeBlockSize = blockSize;
+      analysis.totalFreeSize += blockSize;
+
+      const newBlock = currentBlock.value$.body.freeListElement.next;
+      if (newBlock === NULL_PTR) break;
+
+      if (
+        currentBlock.value$.header.selfDescriptor > newBlock.value$.header.selfDescriptor ||
+        newBlock.value$.body.freeListElement.prev !== currentBlock
+      ) {
+        analysis.isCorrupted = true;
+        break;
+      }
+
+      currentBlock = newBlock;
+    }
+
+    if (currentBlock !== bucket.lastFreeBlock) analysis.isCorrupted = true;
+  }
+
+  if (analysis.nFreeBlocks > 0) analysis.averageFreeBlockSize = analysis.totalFreeSize / analysis.nFreeBlocks;
+  else analysis.smallestFreeBlockSize = 0;
+
+  return analysis;
+}
+
+interface MemoryAnalysis {
+  totalMemorySize: number;
+  totalFreeSize: number;
+  totalUsedSize: number;
+  usedRatio: number;
+  bucketClasses: BucketClassAnalysis[];
+  isCorrupted: boolean;
+}
+
+function getMemoryAnalysis(): MemoryAnalysis {
+  const bucketClasses: BucketClassAnalysis[] = Array.from({ length: N_BUCKET_CLASSES + 1 }, (_, i) =>
+    getBucketClassAnalysis(i, i < N_BUCKET_CLASSES ? 32 : 1)
+  );
+
+  const totalFreeSize = bucketClasses.reduce((s, c) => s + c.totalFreeSize, 0);
+  const totalUsedSize = M.byteLength - totalFreeSize;
+
+  return {
+    totalMemorySize: M.byteLength,
+    totalUsedSize,
+    totalFreeSize: M.byteLength - totalUsedSize,
+    usedRatio: totalUsedSize / M.byteLength,
+    bucketClasses,
+    isCorrupted: bucketClasses.some(c => c.isCorrupted)
+  };
+}
+
+export { MEMORY_INFO, malloc, mresize, free, BucketClassAnalysis, MemoryAnalysis, getMemoryAnalysis };

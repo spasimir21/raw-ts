@@ -1,16 +1,11 @@
 interface MemoryConfig {
-  initialRawMemorySize: number;
-  rawMemoryScaleFactor: number;
-
-  initialJsValueMemorySize: number;
-  jsValueMemoryScaleFactor: number;
+  initialMemorySize: number;
+  memoryScaleFactor: number;
 }
 
 let MEMORY_CONFIG: MemoryConfig = Object.freeze({
-  initialRawMemorySize: 1024 * 1024, // 1mb
-  rawMemoryScaleFactor: 2,
-  initialJsValueMemorySize: 128,
-  jsValueMemoryScaleFactor: 2
+  initialMemorySize: 1024 * 1024, // 1mb
+  memoryScaleFactor: 2
 });
 
 let IS_MEMORY_INITIALIZED = false;
@@ -21,7 +16,7 @@ function configureMemory(overrides: Partial<MemoryConfig>) {
 
 function initializeMemory(overrides?: Partial<MemoryConfig>) {
   if (IS_MEMORY_INITIALIZED) {
-    console.warn('Memory was already initialized!');
+    console.warn('[RAW-TS] Memory was already initialized!');
     return;
   }
 
@@ -29,8 +24,7 @@ function initializeMemory(overrides?: Partial<MemoryConfig>) {
 
   if (overrides) configureMemory(overrides);
 
-  resizeRawMemory(MEMORY_CONFIG.initialRawMemorySize);
-  resizeJSValueMemory(MEMORY_CONFIG.initialJsValueMemorySize);
+  resizeMemory(MEMORY_CONFIG.initialMemorySize);
 }
 
 const M = new ArrayBuffer(0, { maxByteLength: 4 * 1024 * 1024 * 1024 /* 4GB */ });
@@ -54,16 +48,23 @@ const M_F64 = new Float64Array(M);
 
 const M_JS: any[] = [];
 
-function resizeRawMemory(newSize?: number) {
-  M.resize(newSize ?? Math.floor(M.byteLength * MEMORY_CONFIG.rawMemoryScaleFactor));
+function formatByteSize(byteSize: number) {
+  if (byteSize < 1024) return `${byteSize} B`;
+  byteSize /= 1024;
 
-  console.log(`Raw memory resized to ${M.byteLength} bytes.`);
+  if (byteSize < 1024) return `${Number.isInteger(byteSize) ? byteSize : byteSize.toFixed(2)} KB`;
+  byteSize /= 1024;
+
+  if (byteSize < 1024) return `${Number.isInteger(byteSize) ? byteSize : byteSize.toFixed(2)} MB`;
+  byteSize /= 1024;
+
+  return `${Number.isInteger(byteSize) ? byteSize : byteSize.toFixed(2)} GB`;
 }
 
-function resizeJSValueMemory(newSize?: number) {
-  M_JS.length = newSize ?? Math.floor(M_JS.length * MEMORY_CONFIG.jsValueMemoryScaleFactor);
+function resizeMemory(newSize?: number) {
+  M.resize(newSize ?? Math.floor(M.byteLength * MEMORY_CONFIG.memoryScaleFactor));
 
-  console.log(`JS value memory resized to ${M_JS.length} entries.`);
+  console.log(`[RAW-TS] Memory resized to ${formatByteSize(M.byteLength)}.`);
 }
 
 export {
@@ -85,6 +86,5 @@ export {
   M_F32,
   M_F64,
   M_JS,
-  resizeRawMemory,
-  resizeJSValueMemory
+  resizeMemory
 };
