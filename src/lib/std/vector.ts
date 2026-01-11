@@ -168,12 +168,15 @@ function vector_splice(
 const vector_push = <T extends RawTypeContainer>(vector: Vector<T>) =>
   vector_splice(vector, (vector as any as UntypedVector).length, 0, 1);
 
-const vector_pop = <T extends RawTypeContainer>(vector: Vector<T>) =>
-  vector_splice(vector, (vector as any as UntypedVector).length - 1, 1, 0);
+const vector_pop = <T extends RawTypeContainer>(vector: Vector<T>): void =>
+  (vector as any as UntypedVector).length === 0
+    ? undefined
+    : vector_splice(vector, (vector as any as UntypedVector).length - 1, 1, 0);
 
 const vector_unshift = <T extends RawTypeContainer>(vector: Vector<T>) => vector_splice(vector, 0, 0, 1);
 
-const vector_shift = <T extends RawTypeContainer>(vector: Vector<T>) => vector_splice(vector, 0, 1, 0);
+const vector_shift = <T extends RawTypeContainer>(vector: Vector<T>): void =>
+  (vector as any as UntypedVector).length === 0 ? undefined : vector_splice(vector, 0, 1, 0);
 
 const vector_clear = <T extends RawTypeContainer>(vector: Vector<T>) =>
   vector_splice(vector, 0, (vector as any as UntypedVector).length, 0);
