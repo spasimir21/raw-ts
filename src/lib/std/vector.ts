@@ -3,8 +3,9 @@
 'use raw';
 
 import { RawArray, RawPointer, RawTypeContainer, Struct, UInt32, Void } from '../types';
-import { free, M, M_U8, malloc, mresize, NULL_PTR } from '../runtime';
-import { pointerCast$, sizeOf$ } from '../macros';
+import { free, malloc, mresize, NULL_PTR } from '../runtime';
+import { memmove, memset } from '../runtime/memory';
+import { sizeOf$ } from '../macros';
 
 type Vector<T extends RawTypeContainer> = Struct<{
   length: UInt32;
@@ -75,7 +76,7 @@ function vector_scale(typedVector: Vector<RawTypeContainer>, capacity: number): 
   const oldData = vector.data;
   vector.data = malloc(newSize);
 
-  M_U8.copyWithin(vector.data, oldData, oldData + Math.min(oldSize, newSize));
+  memmove(vector.data, oldData, Math.min(oldSize, newSize));
 
   free(oldData);
 }
@@ -90,23 +91,102 @@ function vector_ensure_capacity(typedVector: Vector<RawTypeContainer>, targetCap
   vector_scale(typedVector, capacity);
 }
 
-function vector_push<T extends RawTypeContainer>(typedVector: Vector<T>): RawPointer<T> {
+function vector_at<T extends RawTypeContainer>(typedVector: Vector<T>, index: number): RawPointer<T> {
+  if (!Number.isInteger(index)) throw new Error(`${index} is an invalid index for a vector!`);
+
   const vector = typedVector as any as UntypedVector;
 
-  vector_ensure_capacity(typedVector, vector.length + 1);
-  vector.length++;
+  if (index < 0) index += vector.length;
+  if (index < 0 || index >= vector.length) throw new Error(`${index} is out of bounds for vector!`);
 
-  return (vector.data + vector.valueSize * (vector.length - 1)) as RawPointer<T>;
+  return (vector.data + index * vector.valueSize) as RawPointer<T>;
 }
 
-// vector_at
-// vector_splice
-// vector_pop
-// vector_shift
-// vector_unshift
-// vector_clear
-// vector_delete
-// vector_insert
+function vector_splice(
+  vector: Vector<RawTypeContainer>,
+  index: number,
+  deleteCount: number,
+  insertCount: 0
+): void;
+function vector_splice<T extends RawTypeContainer>(
+  vector: Vector<T>,
+  index: number,
+  deleteCount: number,
+  insertCount: 1
+): RawPointer<T>;
+function vector_splice<T extends RawTypeContainer>(
+  vector: Vector<T>,
+  index: number,
+  deleteCount: number,
+  insertCount: number
+): RawArray<T>;
+function vector_splice(
+  typedVector: Vector<RawTypeContainer>,
+  index: number,
+  deleteCount: number,
+  insertCount: number
+): RawPointer<RawTypeContainer> | RawArray<RawTypeContainer> {
+  if (!Number.isInteger(index)) throw new Error(`${index} is an invalid index for a vector!`);
+
+  const vector = typedVector as any as UntypedVector;
+
+  if (index < 0) index += vector.length;
+  if (index < 0 || index > vector.length) throw new Error(`${index} is out of bounds for vector!`);
+
+  if (!Number.isInteger(deleteCount) || deleteCount < 0)
+    throw new Error(`${deleteCount} is an invalid delete count for vector splice!`);
+
+  if (!Number.isInteger(insertCount) || insertCount < 0)
+    throw new Error(`${insertCount} is an invalid insert count for vector splice!`);
+
+  deleteCount = Math.min(deleteCount, vector.length - index);
+  if (insertCount === 0 && deleteCount === 0) return NULL_PTR as RawPointer<RawTypeContainer>;
+
+  const oldLength = vector.length;
+  const newLength = oldLength + insertCount - deleteCount;
+
+  vector_ensure_capacity(typedVector, newLength);
+  vector.length = newLength as UInt32;
+
+  if (vector.data === NULL_PTR) return NULL_PTR as RawPointer<RawTypeContainer>;
+
+  const valueSize = vector.valueSize;
+  const start: number = vector.data + index * valueSize;
+
+  if (insertCount !== deleteCount && index + deleteCount < oldLength)
+    memmove(
+      start + insertCount * valueSize,
+      start + deleteCount * valueSize,
+      (oldLength - index - deleteCount) * valueSize
+    );
+
+  if (insertCount > 0) memset(start, 0, insertCount * valueSize);
+
+  return start as RawPointer<RawTypeContainer> | RawArray<RawTypeContainer>;
+}
+
+const vector_push = <T extends RawTypeContainer>(vector: Vector<T>) =>
+  vector_splice(vector, (vector as any as UntypedVector).length, 0, 1);
+
+const vector_pop = <T extends RawTypeContainer>(vector: Vector<T>) =>
+  vector_splice(vector, (vector as any as UntypedVector).length - 1, 1, 0);
+
+const vector_unshift = <T extends RawTypeContainer>(vector: Vector<T>) => vector_splice(vector, 0, 0, 1);
+
+const vector_shift = <T extends RawTypeContainer>(vector: Vector<T>) => vector_splice(vector, 0, 1, 0);
+
+const vector_clear = <T extends RawTypeContainer>(vector: Vector<T>) =>
+  vector_splice(vector, 0, (vector as any as UntypedVector).length, 0);
+
+const vector_delete = <T extends RawTypeContainer>(vector: Vector<T>, index: number, count: number = 1) =>
+  vector_splice(vector, index, count, 0);
+
+const vector_insert: (<T extends RawTypeContainer>(vector: Vector<T>, index: number) => RawPointer<T>) &
+  (<T extends RawTypeContainer>(vector: Vector<T>, index: number, count: number) => RawArray<T>) = (
+  vector: Vector<RawTypeContainer>,
+  index: number,
+  count: number = 1
+) => vector_splice(vector, index, 0, count) as any;
 
 export {
   VECTOR_SIZE,
@@ -114,7 +194,15 @@ export {
   vector_deinit,
   vector_scale,
   vector_ensure_capacity,
+  vector_at,
+  vector_splice,
   vector_push,
+  vector_pop,
+  vector_unshift,
+  vector_shift,
+  vector_clear,
+  vector_delete,
+  vector_insert,
   Vector,
   UntypedVector
 };

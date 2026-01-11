@@ -67,6 +67,10 @@ function resizeMemory(newSize?: number) {
   console.log(`[RAW-TS] Memory resized to ${formatByteSize(M.byteLength)}.`);
 }
 
+const memset = (start: number, value: number, size: number) => M_U8.fill(value, start, start + size);
+
+const memmove = (dest: number, src: number, size: number) => M_U8.copyWithin(dest, src, src + size);
+
 export {
   MemoryConfig,
   MEMORY_CONFIG,
@@ -86,5 +90,7 @@ export {
   M_F32,
   M_F64,
   M_JS,
-  resizeMemory
+  resizeMemory,
+  memset,
+  memmove
 };

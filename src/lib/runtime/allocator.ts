@@ -4,7 +4,7 @@
 
 import { RawArray, RawPointer, RawTypeContainer, Struct, UInt32, Union, Void } from '../types';
 import { addressOf$, offsetOf$, pointerCast$, sizeOf$ } from '../macros';
-import { M, M_U32, resizeMemory } from './memory';
+import { M, memset, resizeMemory } from './memory';
 import { NULL_PTR } from './nullptr';
 
 /*
@@ -430,12 +430,7 @@ function malloc<T extends RawTypeContainer = Void>(
   if ((freeBlock.header.selfDescriptor >>> 3) - wordSize >= MIN_WORDS_FOR_BLOCK)
     splitBlock(freeBlock, wordSize);
 
-  if (zeroAllocated)
-    M_U32.fill(
-      0,
-      addressOf$(freeBlock.body) >> 2,
-      (addressOf$(freeBlock.body) + (freeBlock.header.selfDescriptor & ~0b111)) >> 2
-    );
+  if (zeroAllocated) memset(addressOf$(freeBlock.body), 0, freeBlock.header.selfDescriptor & ~0b111);
 
   return addressOf$(freeBlock.body) as RawPointer<T>;
 }
@@ -482,11 +477,7 @@ function mresize(
   updateNextBlocksPrevDescriptor(block);
 
   if (zeroAllocated)
-    M_U32.fill(
-      0,
-      (addressOf$(block.body) >> 2) + (currentWordSize << 1),
-      (addressOf$(block.body) >> 2) + (newWordSize << 1)
-    );
+    memset(addressOf$(block.body) + (currentWordSize << 3), 0, (newWordSize - currentWordSize) << 3);
 
   if (mergedWordSize - newWordSize >= MIN_WORDS_FOR_BLOCK) splitBlock(block, newWordSize);
 
