@@ -100,14 +100,6 @@ type Float64Descriptor = {
   hasDynamicSize: false;
 };
 
-type BoolDescriptor = {
-  kind: RawTypeKind.Bool;
-  size: 1;
-  alignment: 1;
-  isValueType: true;
-  hasDynamicSize: false;
-};
-
 type VoidDescriptor<Size extends number = number, Align extends Alignment = Alignment> = {
   kind: RawTypeKind.Void;
   size: Size;
@@ -134,10 +126,7 @@ type JSPointerDescriptor<T> = {
   targetType: T;
 };
 
-type ArrayDescriptor<
-  T extends RawTypeDescriptor = RawTypeDescriptor,
-  Length extends number = number
-> = {
+type ArrayDescriptor<T extends RawTypeDescriptor = RawTypeDescriptor, Length extends number = number> = {
   kind: RawTypeKind.Array;
   size: number;
   alignment: T['alignment'];
@@ -148,9 +137,7 @@ type ArrayDescriptor<
   elementDescriptor: T;
 };
 
-type UnionDescriptor<
-  T extends Record<string, RawTypeDescriptor> = Record<string, RawTypeDescriptor>
-> = {
+type UnionDescriptor<T extends Record<string, RawTypeDescriptor> = Record<string, RawTypeDescriptor>> = {
   kind: RawTypeKind.Union;
   size: number;
   alignment: Alignment;
@@ -159,10 +146,7 @@ type UnionDescriptor<
   variantDescriptors: T;
 };
 
-type StructFieldDescriptor<
-  T extends RawTypeDescriptor = RawTypeDescriptor,
-  Name extends string = string
-> = {
+type StructFieldDescriptor<T extends RawTypeDescriptor = RawTypeDescriptor, Name extends string = string> = {
   index: number;
   name: Name;
   offset: number;
@@ -170,9 +154,7 @@ type StructFieldDescriptor<
   valueDescriptor: T;
 };
 
-type StructDescriptor<
-  T extends Record<string, RawTypeDescriptor> = Record<string, RawTypeDescriptor>
-> = {
+type StructDescriptor<T extends Record<string, RawTypeDescriptor> = Record<string, RawTypeDescriptor>> = {
   kind: RawTypeKind.Struct;
   size: number;
   alignment: Alignment;
@@ -194,7 +176,6 @@ type RawTypeDescriptor =
   | Float16Descriptor
   | Float32Descriptor
   | Float64Descriptor
-  | BoolDescriptor
   | VoidDescriptor
   | {
       kind: RawTypeKind.RawPointer;
@@ -218,7 +199,8 @@ type RawTypeDescriptor =
       alignment: Alignment;
       isValueType: false;
       hasDynamicSize: boolean;
-      length: number | null;
+      hasFixedLength: boolean;
+      length: number;
       elementDescriptor: RawTypeDescriptor;
     }
   | {
@@ -251,7 +233,6 @@ type RawTypeDescriptorByKindMap = {
   [RawTypeKind.Float16]: Float16Descriptor;
   [RawTypeKind.Float32]: Float32Descriptor;
   [RawTypeKind.Float64]: Float64Descriptor;
-  [RawTypeKind.Bool]: BoolDescriptor;
 };
 
 // prettier-ignore
@@ -280,7 +261,6 @@ export {
   Float16Descriptor,
   Float32Descriptor,
   Float64Descriptor,
-  BoolDescriptor,
   VoidDescriptor,
   RawPointerDescriptor,
   JSPointerDescriptor,

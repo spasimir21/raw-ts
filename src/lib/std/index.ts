@@ -1,5 +1,7 @@
 // @disable-raw
 
-// TODO: vector, stackFrameAllocator, fixedSizeAllocator
+// TODO: fixedSizeAllocator
 
+export * from './stackAllocator';
+export * from './readRaw';
 export * from './vector';

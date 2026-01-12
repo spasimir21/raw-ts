@@ -81,7 +81,7 @@ function vector_scale(typedVector: Vector<RawTypeContainer>, capacity: number): 
   free(oldData);
 }
 
-function vector_ensure_capacity(typedVector: Vector<RawTypeContainer>, targetCapacity: number): void {
+function vector_ensureCapacity(typedVector: Vector<RawTypeContainer>, targetCapacity: number): void {
   const vector = typedVector as any as UntypedVector;
   if (vector.capacity >= targetCapacity) return;
 
@@ -145,7 +145,7 @@ function vector_splice(
   const oldLength = vector.length;
   const newLength = oldLength + insertCount - deleteCount;
 
-  vector_ensure_capacity(typedVector, newLength);
+  vector_ensureCapacity(typedVector, newLength);
   vector.length = newLength as UInt32;
 
   if (vector.data === NULL_PTR) return NULL_PTR as RawPointer<RawTypeContainer>;
@@ -196,7 +196,7 @@ export {
   vector_init,
   vector_deinit,
   vector_scale,
-  vector_ensure_capacity,
+  vector_ensureCapacity,
   vector_at,
   vector_splice,
   vector_push,

@@ -14,7 +14,6 @@ enum RawTypeKind {
   Float16,
   Float32,
   Float64,
-  Bool,
   Void,
   RawPointer,
   JSPointer,
@@ -23,11 +22,7 @@ enum RawTypeKind {
   Struct
 }
 
-type ReferenceRawTypeKind =
-  | RawTypeKind.Void
-  | RawTypeKind.Array
-  | RawTypeKind.Union
-  | RawTypeKind.Struct;
+type ReferenceRawTypeKind = RawTypeKind.Void | RawTypeKind.Array | RawTypeKind.Union | RawTypeKind.Struct;
 
 type VoidTypeInfo = {
   kind: RawTypeKind.Void;
@@ -103,8 +98,6 @@ type Float64 = RawTypeOf<number, { kind: RawTypeKind.Float64 }>;
 
 type UInt64 = RawTypeOf<bigint, { kind: RawTypeKind.UInt64 }>;
 type Int64 = RawTypeOf<bigint, { kind: RawTypeKind.Int64 }>;
-
-type Bool = RawTypeOf<boolean, { kind: RawTypeKind.Bool }>;
 
 type Void<Size extends number = number, Align extends Alignment = 8> = RawTypeOf<
   unknown,
@@ -182,7 +175,6 @@ export {
   Float16,
   Float32,
   Float64,
-  Bool,
   Void,
   RawPointer,
   JSPointer,

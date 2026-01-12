@@ -33,7 +33,6 @@ const TYPE_KIND_TO_MEMORY_MAP = {
   [RawTypeKind.Float16]: MEMORY.M_F16,
   [RawTypeKind.Float32]: MEMORY.M_F32,
   [RawTypeKind.Float64]: MEMORY.M_F64,
-  [RawTypeKind.Bool]: MEMORY.M_U8,
   [RawTypeKind.RawPointer]: MEMORY.M_U32,
   [RawTypeKind.JSPointer]: MEMORY.M_U32
 } as const;
@@ -160,8 +159,8 @@ function getPropertyAccessChain(
     expression: node,
     operations,
     descriptor:
-      analyzeRawType(ts, sourceFile, typeChecker, typeChecker.getTypeAtLocation(initialNode))
-        .descriptor ?? null
+      analyzeRawType(ts, sourceFile, typeChecker, typeChecker.getTypeAtLocation(initialNode)).descriptor ??
+      null
   };
 }
 
@@ -195,13 +194,7 @@ function createResolveValueExpression(
         )
   );
 
-  if (typeKind !== RawTypeKind.Bool) return valueExpression;
-
-  return f.createBinaryExpression(
-    valueExpression,
-    f.createToken(ts.SyntaxKind.ExclamationEqualsEqualsToken),
-    f.createNumericLiteral('0')
-  );
+  return valueExpression;
 }
 
 function transformPropertyAccess(
@@ -277,10 +270,7 @@ function transformPropertyAccess(
 
         if (operation.kind === PropertyAccessOperationKind.JS_POINTER_DEREF)
           expression = f.createElementAccessExpression(
-            f.createPropertyAccessExpression(
-              f.createIdentifier(RAW_TS_RUNTIME_OBJECT),
-              MEMORY.M_JS
-            ),
+            f.createPropertyAccessExpression(f.createIdentifier(RAW_TS_RUNTIME_OBJECT), MEMORY.M_JS),
             expression
           );
 
@@ -291,13 +281,7 @@ function transformPropertyAccess(
   resetOffsetAndUpdateExpression();
 
   return shouldResolveValue && chain.descriptor != null
-    ? createResolveValueExpression(
-        ts,
-        f,
-        expression,
-        chain.descriptor.kind,
-        chain.descriptor.alignment
-      )
+    ? createResolveValueExpression(ts, f, expression, chain.descriptor.kind, chain.descriptor.alignment)
     : expression;
 }
 

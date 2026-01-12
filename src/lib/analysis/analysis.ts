@@ -4,7 +4,6 @@ import { getPropertyTypeFromType } from './typeHelpers';
 import type TS from 'typescript';
 import {
   ArrayDescriptor,
-  BoolDescriptor,
   Float16Descriptor,
   Float32Descriptor,
   Float64Descriptor,
@@ -52,10 +51,7 @@ const analysisWithError = (errorMessage: string, errorCode: number) =>
     errorCode
   } satisfies RawTypeAnalysis);
 
-const INVALID_RAW_TYPE = analysisWithError(
-  'Invalid raw type!',
-  RAW_TS_DIAGNOSTIC_CODES.INVALID_RAW_TYPE
-);
+const INVALID_RAW_TYPE = analysisWithError('Invalid raw type!', RAW_TS_DIAGNOSTIC_CODES.INVALID_RAW_TYPE);
 
 const SELF_REFERENTIAL_RAW_TYPE = analysisWithError(
   'This type references itself!',
@@ -174,16 +170,6 @@ const RAW_TYPE_DESCRIPTOR_MAP = new Map([
     } satisfies Float64Descriptor
   ],
   [
-    RawTypeKind.Bool,
-    {
-      kind: RawTypeKind.Bool,
-      size: 1,
-      alignment: 1,
-      isValueType: true,
-      hasDynamicSize: false
-    } satisfies BoolDescriptor
-  ],
-  [
     RawTypeKind.JSPointer,
     {
       kind: RawTypeKind.JSPointer,
@@ -223,10 +209,7 @@ function analyzeVoidTypeInfo(
     (sizeType.isNumberLiteral() &&
       (!Number.isFinite(sizeType.value) || sizeType.value < 0 || sizeType.value > 64_000_000))
   )
-    return analysisWithError(
-      `Invalid or indeterminite size!`,
-      RAW_TS_DIAGNOSTIC_CODES.INVALID_RAW_TYPE
-    );
+    return analysisWithError(`Invalid or indeterminite size!`, RAW_TS_DIAGNOSTIC_CODES.INVALID_RAW_TYPE);
 
   return analysisWithDescriptor({
     kind: RawTypeKind.Void,
@@ -250,13 +233,7 @@ function analyzeRawPointerTypeInfo(
 
   let targetDescriptor = circularDescriptors.get(targetType.id) ?? null;
   if (targetDescriptor == null) {
-    const targetAnalysis = analyzeRawType(
-      ts,
-      sourceFile,
-      typeChecker,
-      targetType,
-      circularDescriptors
-    );
+    const targetAnalysis = analyzeRawType(ts, sourceFile, typeChecker, targetType, circularDescriptors);
 
     if (targetAnalysis.descriptor == null)
       return analysisWithError(
@@ -298,10 +275,7 @@ function analyzeRawArrayTypeInfo(
     (lengthType.isNumberLiteral() &&
       (!Number.isFinite(lengthType.value) || lengthType.value < 0 || lengthType.value > 64_000_000))
   )
-    return analysisWithError(
-      `Invalid or indeterminite length!`,
-      RAW_TS_DIAGNOSTIC_CODES.INVALID_RAW_TYPE
-    );
+    return analysisWithError(`Invalid or indeterminite length!`, RAW_TS_DIAGNOSTIC_CODES.INVALID_RAW_TYPE);
 
   const descriptor: ArrayDescriptor = {
     kind: RawTypeKind.Array,
@@ -316,21 +290,12 @@ function analyzeRawArrayTypeInfo(
 
   circularDescriptors.set(type.id, descriptor);
 
-  const elementAnalysis = analyzeRawType(
-    ts,
-    sourceFile,
-    typeChecker,
-    elementType,
-    circularDescriptors
-  );
+  const elementAnalysis = analyzeRawType(ts, sourceFile, typeChecker, elementType, circularDescriptors);
 
   circularDescriptors.delete(type.id);
 
   if (elementAnalysis.descriptor == null)
-    return analysisWithError(
-      `In element type,\n${elementAnalysis.errorMessage}`,
-      elementAnalysis.errorCode
-    );
+    return analysisWithError(`In element type,\n${elementAnalysis.errorMessage}`, elementAnalysis.errorCode);
 
   const elementDescriptor = elementAnalysis.descriptor;
   if (elementDescriptor.hasDynamicSize)
@@ -379,13 +344,7 @@ function analyzeRawUnionTypeInfo(
 
   for (const variantSymbol of variantSymbols) {
     const variantType = typeChecker.getTypeOfSymbol(variantSymbol);
-    const variantAnalysis = analyzeRawType(
-      ts,
-      sourceFile,
-      typeChecker,
-      variantType,
-      circularDescriptors
-    );
+    const variantAnalysis = analyzeRawType(ts, sourceFile, typeChecker, variantType, circularDescriptors);
 
     if (variantAnalysis.descriptor == null) {
       circularDescriptors.delete(type.id);
@@ -451,13 +410,7 @@ function analyzeRawStructTypeInfo(
     const fieldSymbol = fieldSymbols[i]!;
 
     const valueType = typeChecker.getTypeOfSymbol(fieldSymbol);
-    const valueAnalysis = analyzeRawType(
-      ts,
-      sourceFile,
-      typeChecker,
-      valueType,
-      circularDescriptors
-    );
+    const valueAnalysis = analyzeRawType(ts, sourceFile, typeChecker, valueType, circularDescriptors);
 
     if (valueAnalysis.descriptor == null) {
       circularDescriptors.delete(type.id);
@@ -498,8 +451,7 @@ function analyzeRawStructTypeInfo(
     offset += valueDescriptor.size;
 
     if (valueDescriptor.hasDynamicSize) descriptor.hasDynamicSize = true;
-    if (valueDescriptor.alignment > descriptor.alignment)
-      descriptor.alignment = valueDescriptor.alignment;
+    if (valueDescriptor.alignment > descriptor.alignment) descriptor.alignment = valueDescriptor.alignment;
 
     descriptor.fieldDescriptors[fieldSymbol.name] = fieldDescriptor;
     lastFieldDescriptor = fieldDescriptor;
@@ -537,32 +489,11 @@ function analyzeRawTypeInfo(
     case RawTypeKind.RawPointer:
       return analyzeRawPointerTypeInfo(ts, sourceFile, typeChecker, infoType, circularDescriptors);
     case RawTypeKind.Array:
-      return analyzeRawArrayTypeInfo(
-        ts,
-        sourceFile,
-        typeChecker,
-        type,
-        infoType,
-        circularDescriptors
-      );
+      return analyzeRawArrayTypeInfo(ts, sourceFile, typeChecker, type, infoType, circularDescriptors);
     case RawTypeKind.Union:
-      return analyzeRawUnionTypeInfo(
-        ts,
-        sourceFile,
-        typeChecker,
-        type,
-        infoType,
-        circularDescriptors
-      );
+      return analyzeRawUnionTypeInfo(ts, sourceFile, typeChecker, type, infoType, circularDescriptors);
     case RawTypeKind.Struct:
-      return analyzeRawStructTypeInfo(
-        ts,
-        sourceFile,
-        typeChecker,
-        type,
-        infoType,
-        circularDescriptors
-      );
+      return analyzeRawStructTypeInfo(ts, sourceFile, typeChecker, type, infoType, circularDescriptors);
   }
 
   const descriptor = RAW_TYPE_DESCRIPTOR_MAP.get(kindType.value) ?? null;
