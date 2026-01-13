@@ -25,17 +25,21 @@ type StackAllocator = Struct<{
 const STACK_ALLOCATOR_SIZE = sizeOf$<StackAllocator>();
 
 function stackAllocator_init(allocator: StackAllocator, pageSize: number): void {
-  memset(addressOf$(allocator), 0, sizeOf$<StackAllocator>());
+  memset(addressOf$(allocator), 0, STACK_ALLOCATOR_SIZE);
 
   allocator.pageSize = pageSize as UInt32;
 
-  allocator.currentPage = malloc<StackAllocatorPage>(sizeOf$<StackAllocatorPage>() + pageSize);
+  const firstPage = malloc<StackAllocatorPage>(sizeOf$<StackAllocatorPage>() + pageSize).value$;
+  firstPage.nextPage = NULL_PTR as RawPointer<StackAllocatorPage>;
+  firstPage.prevPage = NULL_PTR as RawPointer<StackAllocatorPage>;
+
+  allocator.currentPage = addressOf$(firstPage);
   allocator.pageCount = 1 as UInt32;
 }
 
 function stackAllocator_deinit(allocator: StackAllocator): void {
   const currentPage = allocator.currentPage;
-  memset(addressOf$(allocator), 0, sizeOf$<StackAllocator>());
+  memset(addressOf$(allocator), 0, STACK_ALLOCATOR_SIZE);
 
   if (currentPage === NULL_PTR) return;
 
@@ -115,11 +119,12 @@ function stackAllocator_popFrame(allocator: StackAllocator): void {
 function stackAllocator_alloc<T extends RawTypeContainer = Void>(
   allocator: StackAllocator,
   size: number,
-  alignment: Alignment = 8,
-  zeroAllocated: boolean = true
+  alignment: Alignment,
+  zeroAllocated: boolean = false
 ): RawPointer<T> {
   if (size > allocator.pageSize)
     throw new Error(`${size} is larger than the max allowed allocation size for this stack allocator!`);
+  if (size <= 0) throw new Error(`${size} is not a valid size for this stack allocator!`);
 
   const pageOffset = allocator.currentPageOffset;
 
@@ -140,6 +145,8 @@ function stackAllocator_alloc<T extends RawTypeContainer = Void>(
   if (page.nextPage === NULL_PTR) {
     const newPage = malloc<StackAllocatorPage>(sizeOf$<StackAllocatorPage>() + allocator.pageSize).value$;
     newPage.prevPage = addressOf$(page);
+    newPage.nextPage = NULL_PTR as RawPointer<StackAllocatorPage>;
+
     page.nextPage = addressOf$(newPage);
     allocator.pageCount++;
   }

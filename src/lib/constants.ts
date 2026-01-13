@@ -1,6 +1,6 @@
 import { generateErrorCodes } from './utils/errorCodes';
 
-const RAW_TS_IMPORT_PATH = './lib'; // TODO: Use real raw-ts import path
+const RAW_TS_IMPORT_PATH = 'raw-ts';
 
 const RAW_TS_RUNTIME_IMPORT_PATH = `${RAW_TS_IMPORT_PATH}/runtime`;
 

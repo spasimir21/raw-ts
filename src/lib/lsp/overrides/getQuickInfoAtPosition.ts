@@ -6,16 +6,9 @@ import { LSOverrideFactory } from '../LSOverrideContext';
 import { getNodeAtPosition } from '../getNodeAtPosition';
 import { RawTypeKind } from '../../types';
 import { CACHE_KEYS } from '../cacheKeys';
-import {
-  DISABLE_RAW_TS_PRAGMA,
-  RAW_TS_MACROS_NAME_SET,
-  USE_RAW_TS_DIRECTIVE
-} from '../../constants';
+import { DISABLE_RAW_TS_PRAGMA, RAW_TS_MACROS_NAME_SET, USE_RAW_TS_DIRECTIVE } from '../../constants';
 
-const getQuickInfoAtPositionLSOverride: LSOverrideFactory<'getQuickInfoAtPosition'> = ({
-  ts,
-  cache
-}) => ({
+const getQuickInfoAtPositionLSOverride: LSOverrideFactory<'getQuickInfoAtPosition'> = ({ ts, cache }) => ({
   key: 'getQuickInfoAtPosition',
   getOverride: languageService => (fileName, position, maximumLength) => {
     const quickInfo = languageService.getQuickInfoAtPosition(fileName, position, maximumLength);
@@ -105,13 +98,7 @@ const getQuickInfoAtPositionLSOverride: LSOverrideFactory<'getQuickInfoAtPositio
           displayParts
         };
 
-      const preview = getMacroPreviewForQuickInfo(
-        ts,
-        sourceFile,
-        typeChecker,
-        node.parent,
-        node.text
-      );
+      const preview = getMacroPreviewForQuickInfo(ts, sourceFile, typeChecker, node.parent, node.text);
 
       return {
         ...quickInfo,
@@ -121,7 +108,7 @@ const getQuickInfoAtPositionLSOverride: LSOverrideFactory<'getQuickInfoAtPositio
             ? quickInfo.documentation ?? []
             : [
                 {
-                  text: `\`\`\`js\n${preview}\n\`\`\``,
+                  text: `\n\`\`\`js\n${preview}\n\`\`\`\n`,
                   kind: 'text'
                 },
                 ...(quickInfo.documentation ?? [])
@@ -129,9 +116,7 @@ const getQuickInfoAtPositionLSOverride: LSOverrideFactory<'getQuickInfoAtPositio
       };
     }
 
-    const type = typeChecker.getTypeAtLocation(
-      ts.isTypeReferenceNode(node.parent) ? node.parent : node
-    );
+    const type = typeChecker.getTypeAtLocation(ts.isTypeReferenceNode(node.parent) ? node.parent : node);
     if (isRawType(type)) {
       const analysis = analyzeRawType(ts, sourceFile, typeChecker, type);
       if (analysis.descriptor == null) return quickInfo;
@@ -145,9 +130,7 @@ const getQuickInfoAtPositionLSOverride: LSOverrideFactory<'getQuickInfoAtPositio
             text: `[Size: ${descriptor.size}${
               descriptor.hasDynamicSize ? ' + dynamic' : ''
             } bytes, Alignment: ${descriptor.alignment}${
-              descriptor.kind === RawTypeKind.Struct
-                ? `, Padding: ${descriptor.totalPaddingSize} bytes`
-                : ''
+              descriptor.kind === RawTypeKind.Struct ? `, Padding: ${descriptor.totalPaddingSize} bytes` : ''
             }] `,
             kind: 'text'
           },

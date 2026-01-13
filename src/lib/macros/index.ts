@@ -35,15 +35,6 @@ const referenceCast$ = <T extends RawTypeContainer<ReferenceRawTypeInfo>>(
   value: RawTypeContainer<ReferenceRawTypeInfo>
 ): T => throwMacroError('referenceCast$');
 
-const addressOf$ = <T extends RawTypeContainer>(value: T): RawPointer<T> =>
-  throwMacroError('addressOf$');
+const addressOf$ = <T extends RawTypeContainer>(value: T): RawPointer<T> => throwMacroError('addressOf$');
 
-export {
-  typeDescriptorOf$,
-  sizeOf$,
-  alignmentOf$,
-  offsetOf$,
-  pointerCast$,
-  referenceCast$,
-  addressOf$
-};
+export { typeDescriptorOf$, sizeOf$, alignmentOf$, offsetOf$, pointerCast$, referenceCast$, addressOf$ };

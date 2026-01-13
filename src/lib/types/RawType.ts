@@ -99,7 +99,7 @@ type Float64 = RawTypeOf<number, { kind: RawTypeKind.Float64 }>;
 type UInt64 = RawTypeOf<bigint, { kind: RawTypeKind.UInt64 }>;
 type Int64 = RawTypeOf<bigint, { kind: RawTypeKind.Int64 }>;
 
-type Void<Size extends number = number, Align extends Alignment = 8> = RawTypeOf<
+type Void<Align extends Alignment = 8, Size extends number = number> = RawTypeOf<
   unknown,
   {
     kind: RawTypeKind.Void;

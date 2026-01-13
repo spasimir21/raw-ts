@@ -47,7 +47,7 @@ const MIN_WORDS_FOR_BLOCK = sizeOf$<Block>() >>> 3;
 type BlockHeader = Struct<{
   selfDescriptor: UInt32; // bodyByteSize | (isFree ? 0 : 1)
   prevDescriptor: UInt32;
-  _alignment: Void<0, 8>; // Force struct to be 8-byte aligned
+  _alignment: Void<8, 0>; // Force struct to be 8-byte aligned
 }>;
 
 type FreeListElement = Struct<{
@@ -74,7 +74,7 @@ type AllocatorMetadata = Struct<{
   buckets: RawArray<Bucket, typeof N_BUCKETS>;
   firstBlock: RawPointer<Block>;
   lastBlock: RawPointer<Block>;
-  __alignment: Void<0, 8>; // Force struct to be 8-byte aligned
+  __alignment: Void<8, 0>; // Force struct to be 8-byte aligned
 }>;
 
 let IS_ALLOCATOR_INITIALIZED = false;
@@ -407,7 +407,7 @@ function validateBlock(block: Block): boolean {
 
 function malloc<T extends RawTypeContainer = Void>(
   size: number,
-  zeroAllocated: boolean = true
+  zeroAllocated: boolean = false
 ): RawPointer<T> {
   if (typeof size !== 'number' || size <= 0 || !Number.isFinite(size) || !Number.isInteger(size))
     throw new Error(`${size} is not a valid size for malloc!`);

@@ -211,10 +211,12 @@ function analyzeVoidTypeInfo(
   )
     return analysisWithError(`Invalid or indeterminite size!`, RAW_TS_DIAGNOSTIC_CODES.INVALID_RAW_TYPE);
 
+  const alignment = alignmentType.value;
+
   return analysisWithDescriptor({
     kind: RawTypeKind.Void,
-    size: sizeType.isNumberLiteral() ? sizeType.value : 0,
-    alignment: alignmentType.value,
+    size: sizeType.isNumberLiteral() ? (sizeType.value + (alignment - 1)) & ~(alignment - 1) : 0,
+    alignment,
     isValueType: false,
     hasDynamicSize: !sizeType.isNumberLiteral()
   } satisfies VoidDescriptor);
@@ -365,6 +367,8 @@ function analyzeRawUnionTypeInfo(
 
     descriptor.variantDescriptors[variantSymbol.name] = variantDescriptor;
   }
+
+  descriptor.size = (descriptor.size + (descriptor.alignment - 1)) & ~(descriptor.alignment - 1);
 
   circularDescriptors.delete(type.id);
 
