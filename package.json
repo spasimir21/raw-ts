@@ -39,6 +39,7 @@
     }
   },
   "devDependencies": {
+    "@types/node": "^25.0.8",
     "raw-ts": "file:.",
     "ts-node": "^10.9.2",
     "ts-patch": "^3.3.0",
