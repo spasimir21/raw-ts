@@ -1,6 +1,6 @@
 {
   "name": "raw-ts",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "main": "./dist/lsp/index.js",
   "description": "A compile-time, C-like, low-level type and memory management system for TypeScript",
   "scripts": {
@@ -45,6 +45,22 @@
     "ts-patch": "^3.3.0",
     "typescript": "^5.9.3"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/spasimir21/raw-ts.git"
+  },
+  "homepage": "https://github.com/spasimir21/raw-ts/blob/main/README.md",
+  "bugs": {
+    "url": "https://github.com/spasimir21/raw-ts/issues"
+  },
+  "keywords": [
+    "struct",
+    "lsp",
+    "transformer",
+    "c-like",
+    "low-level",
+    "memory-management"
+  ],
   "author": "Spasimir Pavlov",
   "license": "MIT"
 }
