@@ -1,14 +1,39 @@
 {
   "name": "raw-ts",
   "version": "1.0.0",
-  "main": "./dist/lib/lsp/index.js",
-  "description": "",
+  "main": "./dist/lsp/index.js",
+  "description": "A compile-time, C-like, low-level type and memory management system for TypeScript",
   "scripts": {
     "build": "tspc",
     "watch": "tspc -w"
   },
+  "exports": {
+    "./compiler": {
+      "types": "./dist/compiler/index.d.ts",
+      "default": "./dist/compiler/index.js"
+    },
+    "./lsp": {
+      "types": "./dist/lsp/index.d.ts",
+      "default": "./dist/lsp/index.js"
+    },
+    "./macros": {
+      "types": "./dist/macros/index.d.ts",
+      "default": "./dist/macros/index.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtime/index.d.ts",
+      "default": "./dist/runtime/index.js"
+    },
+    "./std": {
+      "types": "./dist/std/index.d.ts",
+      "default": "./dist/std/index.js"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "default": "./dist/types/index.js"
+    }
+  },
   "devDependencies": {
-    "@types/ts-expose-internals": "npm:ts-expose-internals@5.6.3",
     "@types/node": "^24.10.1",
     "raw-ts": "file:.",
     "ts-node": "^10.9.2",
