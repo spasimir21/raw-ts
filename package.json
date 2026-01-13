@@ -7,6 +7,11 @@
     "build": "tspc",
     "watch": "tspc -w"
   },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
   "exports": {
     "./compiler": {
       "types": "./dist/compiler/index.d.ts",
