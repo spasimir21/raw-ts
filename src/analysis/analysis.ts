@@ -188,8 +188,7 @@ function analyzeVoidTypeInfo(
   ts: typeof TS,
   sourceFile: TS.SourceFile,
   typeChecker: TS.TypeChecker,
-  infoType: TS.Type,
-  circularDescriptors: Map<number, RawTypeDescriptor>
+  infoType: TS.Type
 ): RawTypeAnalysis {
   const alignmentType = getPropertyTypeFromType(typeChecker, infoType, 'alignment');
   if (
@@ -227,24 +226,16 @@ function analyzeRawPointerTypeInfo(
   sourceFile: TS.SourceFile,
   typeChecker: TS.TypeChecker,
   infoType: TS.Type,
-  circularDescriptors: Map<number, RawTypeDescriptor>
+  descriptors: Map<number, RawTypeDescriptor>
 ): RawTypeAnalysis {
   const targetType = getPropertyTypeFromType(typeChecker, infoType, 'target');
   if (targetType == null)
     return analysisWithError('Invalid pointer target!', RAW_TS_DIAGNOSTIC_CODES.INVALID_RAW_TYPE);
 
-  let targetDescriptor = circularDescriptors.get(targetType.id) ?? null;
-  if (targetDescriptor == null) {
-    const targetAnalysis = analyzeRawType(ts, sourceFile, typeChecker, targetType, circularDescriptors);
+  const targetAnalysis = analyzeRawType(ts, sourceFile, typeChecker, targetType, undefined, descriptors);
 
-    if (targetAnalysis.descriptor == null)
-      return analysisWithError(
-        `In pointer target,\n${targetAnalysis.errorMessage}`,
-        targetAnalysis.errorCode
-      );
-
-    targetDescriptor = targetAnalysis.descriptor;
-  }
+  if (targetAnalysis.descriptor == null)
+    return analysisWithError(`In pointer target,\n${targetAnalysis.errorMessage}`, targetAnalysis.errorCode);
 
   return analysisWithDescriptor({
     kind: RawTypeKind.RawPointer,
@@ -252,7 +243,7 @@ function analyzeRawPointerTypeInfo(
     alignment: 4,
     isValueType: true,
     hasDynamicSize: false,
-    targetDescriptor
+    targetDescriptor: targetAnalysis.descriptor
   } satisfies RawPointerDescriptor);
 }
 
@@ -262,7 +253,8 @@ function analyzeRawArrayTypeInfo(
   typeChecker: TS.TypeChecker,
   type: TS.Type,
   infoType: TS.Type,
-  circularDescriptors: Map<number, RawTypeDescriptor>
+  circularDescriptors: Set<number>,
+  descriptors: Map<number, RawTypeDescriptor>
 ): RawTypeAnalysis {
   if (circularDescriptors.has(type.id)) return SELF_REFERENTIAL_RAW_TYPE;
 
@@ -290,9 +282,17 @@ function analyzeRawArrayTypeInfo(
     elementDescriptor: null as any
   };
 
-  circularDescriptors.set(type.id, descriptor);
+  descriptors.set(type.id, descriptor);
+  circularDescriptors.add(type.id);
 
-  const elementAnalysis = analyzeRawType(ts, sourceFile, typeChecker, elementType, circularDescriptors);
+  const elementAnalysis = analyzeRawType(
+    ts,
+    sourceFile,
+    typeChecker,
+    elementType,
+    circularDescriptors,
+    descriptors
+  );
 
   circularDescriptors.delete(type.id);
 
@@ -319,7 +319,8 @@ function analyzeRawUnionTypeInfo(
   typeChecker: TS.TypeChecker,
   type: TS.Type,
   infoType: TS.Type,
-  circularDescriptors: Map<number, RawTypeDescriptor>
+  circularDescriptors: Set<number>,
+  descriptors: Map<number, RawTypeDescriptor>
 ): RawTypeAnalysis {
   if (circularDescriptors.has(type.id)) return SELF_REFERENTIAL_RAW_TYPE;
 
@@ -342,11 +343,19 @@ function analyzeRawUnionTypeInfo(
     variantDescriptors: {}
   };
 
-  circularDescriptors.set(type.id, descriptor);
+  descriptors.set(type.id, descriptor);
+  circularDescriptors.add(type.id);
 
   for (const variantSymbol of variantSymbols) {
     const variantType = typeChecker.getTypeOfSymbol(variantSymbol);
-    const variantAnalysis = analyzeRawType(ts, sourceFile, typeChecker, variantType, circularDescriptors);
+    const variantAnalysis = analyzeRawType(
+      ts,
+      sourceFile,
+      typeChecker,
+      variantType,
+      circularDescriptors,
+      descriptors
+    );
 
     if (variantAnalysis.descriptor == null) {
       circularDescriptors.delete(type.id);
@@ -381,7 +390,8 @@ function analyzeRawStructTypeInfo(
   typeChecker: TS.TypeChecker,
   type: TS.Type,
   infoType: TS.Type,
-  circularDescriptors: Map<number, RawTypeDescriptor>
+  circularDescriptors: Set<number>,
+  descriptors: Map<number, RawTypeDescriptor>
 ): RawTypeAnalysis {
   if (circularDescriptors.has(type.id)) return SELF_REFERENTIAL_RAW_TYPE;
 
@@ -405,7 +415,8 @@ function analyzeRawStructTypeInfo(
     fieldDescriptors: {}
   };
 
-  circularDescriptors.set(type.id, descriptor);
+  descriptors.set(type.id, descriptor);
+  circularDescriptors.add(type.id);
 
   let lastFieldDescriptor: StructFieldDescriptor | null = null;
   let offset = 0;
@@ -414,7 +425,14 @@ function analyzeRawStructTypeInfo(
     const fieldSymbol = fieldSymbols[i]!;
 
     const valueType = typeChecker.getTypeOfSymbol(fieldSymbol);
-    const valueAnalysis = analyzeRawType(ts, sourceFile, typeChecker, valueType, circularDescriptors);
+    const valueAnalysis = analyzeRawType(
+      ts,
+      sourceFile,
+      typeChecker,
+      valueType,
+      circularDescriptors,
+      descriptors
+    );
 
     if (valueAnalysis.descriptor == null) {
       circularDescriptors.delete(type.id);
@@ -482,22 +500,51 @@ function analyzeRawTypeInfo(
   typeChecker: TS.TypeChecker,
   type: TS.Type,
   infoType: TS.Type,
-  circularDescriptors: Map<number, RawTypeDescriptor>
+  circularDescriptors: Set<number>,
+  descriptors: Map<number, RawTypeDescriptor>
 ): RawTypeAnalysis {
+  if (circularDescriptors.has(type.id)) return SELF_REFERENTIAL_RAW_TYPE;
+
+  if (descriptors.has(type.id)) return analysisWithDescriptor(descriptors.get(type.id)!);
+
   const kindType = getPropertyTypeFromType(typeChecker, infoType, 'kind');
   if (kindType == null || !kindType.isNumberLiteral()) return INVALID_RAW_TYPE;
 
   switch (kindType.value) {
     case RawTypeKind.Void:
-      return analyzeVoidTypeInfo(ts, sourceFile, typeChecker, infoType, circularDescriptors);
+      return analyzeVoidTypeInfo(ts, sourceFile, typeChecker, infoType);
     case RawTypeKind.RawPointer:
-      return analyzeRawPointerTypeInfo(ts, sourceFile, typeChecker, infoType, circularDescriptors);
+      return analyzeRawPointerTypeInfo(ts, sourceFile, typeChecker, infoType, descriptors);
     case RawTypeKind.Array:
-      return analyzeRawArrayTypeInfo(ts, sourceFile, typeChecker, type, infoType, circularDescriptors);
+      return analyzeRawArrayTypeInfo(
+        ts,
+        sourceFile,
+        typeChecker,
+        type,
+        infoType,
+        circularDescriptors,
+        descriptors
+      );
     case RawTypeKind.Union:
-      return analyzeRawUnionTypeInfo(ts, sourceFile, typeChecker, type, infoType, circularDescriptors);
+      return analyzeRawUnionTypeInfo(
+        ts,
+        sourceFile,
+        typeChecker,
+        type,
+        infoType,
+        circularDescriptors,
+        descriptors
+      );
     case RawTypeKind.Struct:
-      return analyzeRawStructTypeInfo(ts, sourceFile, typeChecker, type, infoType, circularDescriptors);
+      return analyzeRawStructTypeInfo(
+        ts,
+        sourceFile,
+        typeChecker,
+        type,
+        infoType,
+        circularDescriptors,
+        descriptors
+      );
   }
 
   const descriptor = RAW_TYPE_DESCRIPTOR_MAP.get(kindType.value) ?? null;
@@ -511,7 +558,8 @@ function analyzeRawType(
   sourceFile: TS.SourceFile,
   typeChecker: TS.TypeChecker,
   type: TS.Type,
-  circularDescriptors: Map<number, RawTypeDescriptor> = new Map()
+  circularDescriptors: Set<number> = new Set(),
+  descriptors: Map<number, RawTypeDescriptor> = new Map()
 ): RawTypeAnalysis {
   const cachedAnalysis = getCachedRawTypeAnalysis(sourceFile, type.id);
   if (cachedAnalysis) return cachedAnalysis;
@@ -525,7 +573,8 @@ function analyzeRawType(
         typeChecker,
         type,
         typeChecker.getTypeOfSymbol(infoSymbol),
-        circularDescriptors
+        circularDescriptors,
+        descriptors
       )
     : analysisWithError(`This type is not a raw type!`, RAW_TS_DIAGNOSTIC_CODES.NOT_A_RAW_TYPE);
 
