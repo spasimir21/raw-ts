@@ -97,6 +97,8 @@ const metadata = pointerCast$<AllocatorMetadata>(0).value$;
 function initializeAllocator() {
   if (IS_ALLOCATOR_INITIALIZED) return;
 
+  if (M.byteLength === 0) throw new Error('The allocator cannot be used before memory is initialized!');
+
   metadata.firstBlock = pointerCast$<Block>(sizeOf$<AllocatorMetadata>());
   metadata.lastBlock = metadata.firstBlock;
 
