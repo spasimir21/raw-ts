@@ -2,7 +2,7 @@
 
 'use raw';
 
-import { RawPointer, RawTypeContainer, Struct, UInt32, Union, Void } from '../types';
+import { AnyRawType, RawPointer, Struct, UInt32, Union, Void } from '../types';
 import { addressOf$, pointerCast$, sizeOf$ } from '../macros';
 import { free, malloc, NULL_PTR } from '../runtime';
 import { memset } from '../runtime/memory';
@@ -17,7 +17,7 @@ type FixedSizeAllocatorPage = Struct<{
   entries: Void;
 }>;
 
-type FixedSizeAllocator<T extends RawTypeContainer = Void> = Struct<{
+type FixedSizeAllocator<T extends AnyRawType = Void> = Struct<{
   pageCount: UInt32;
   entrySize: UInt32;
   entriesPerPage: UInt32;
@@ -31,7 +31,7 @@ type FixedSizeAllocator<T extends RawTypeContainer = Void> = Struct<{
 const FIXED_SIZE_ALLOCATOR_SIZE = sizeOf$<FixedSizeAllocator>();
 
 function fixedSizeAllocator_init(
-  allocator: FixedSizeAllocator<RawTypeContainer>,
+  allocator: FixedSizeAllocator<AnyRawType>,
   entrySize: number,
   entriesPerPage: number
 ): void {
@@ -44,7 +44,7 @@ function fixedSizeAllocator_init(
   allocator.entriesPerPage = entriesPerPage as UInt32;
 }
 
-function fixedSizeAllocator_deinit(allocator: FixedSizeAllocator<RawTypeContainer>): void {
+function fixedSizeAllocator_deinit(allocator: FixedSizeAllocator<AnyRawType>): void {
   let page = allocator.firstPage;
   memset(addressOf$(allocator), 0, FIXED_SIZE_ALLOCATOR_SIZE);
 
@@ -55,7 +55,7 @@ function fixedSizeAllocator_deinit(allocator: FixedSizeAllocator<RawTypeContaine
   }
 }
 
-function fixedSizeAllocator_allocNewPage(allocator: FixedSizeAllocator<RawTypeContainer>) {
+function fixedSizeAllocator_allocNewPage(allocator: FixedSizeAllocator<AnyRawType>) {
   const entriesPerPage = allocator.entriesPerPage;
   const entrySize = allocator.entrySize;
 
@@ -80,7 +80,7 @@ function fixedSizeAllocator_allocNewPage(allocator: FixedSizeAllocator<RawTypeCo
   allocator.freeListHead = addressOf$(firstEntry);
 }
 
-function fixedSizeAllocator_alloc<T extends RawTypeContainer>(
+function fixedSizeAllocator_alloc<T extends AnyRawType>(
   allocator: FixedSizeAllocator<T>,
   zeroAllocated: boolean = false
 ): RawPointer<T> {
@@ -95,7 +95,7 @@ function fixedSizeAllocator_alloc<T extends RawTypeContainer>(
   return addressOf$(entry.data) as RawPointer<T>;
 }
 
-function fixedSizeAllocator_free<T extends RawTypeContainer>(
+function fixedSizeAllocator_free<T extends AnyRawType>(
   allocator: FixedSizeAllocator<T>,
   pointer: RawPointer<T>
 ): void {
@@ -113,11 +113,11 @@ function fixedSizeAllocator_free<T extends RawTypeContainer>(
   allocator.usedEntries--;
 }
 
-function fixedSizeAllocator_getTotalSize(allocator: FixedSizeAllocator<RawTypeContainer>) {
+function fixedSizeAllocator_getTotalSize(allocator: FixedSizeAllocator<AnyRawType>) {
   return allocator.pageCount * allocator.entriesPerPage * allocator.entrySize;
 }
 
-function fixedSizeAllocator_getUsedSize(allocator: FixedSizeAllocator<RawTypeContainer>) {
+function fixedSizeAllocator_getUsedSize(allocator: FixedSizeAllocator<AnyRawType>) {
   return allocator.usedEntries * allocator.entrySize;
 }
 

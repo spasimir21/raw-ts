@@ -2,7 +2,7 @@
 
 'use raw';
 
-import { Alignment, RawPointer, RawTypeContainer, Struct, UInt32, UInt8, Void } from '../types';
+import { Alignment, AnyRawType, RawPointer, Struct, UInt32, Void } from '../types';
 import { addressOf$, alignmentOf$, pointerCast$, sizeOf$ } from '../macros';
 import { free, malloc, NULL_PTR } from '../runtime';
 import { memset } from '../runtime/memory';
@@ -30,8 +30,8 @@ function stackAllocator_init(allocator: StackAllocator, pageSize: number): void 
   allocator.pageSize = pageSize as UInt32;
 
   const firstPage = malloc<StackAllocatorPage>(sizeOf$<StackAllocatorPage>() + pageSize).value$;
-  firstPage.nextPage = NULL_PTR as RawPointer<StackAllocatorPage>;
-  firstPage.prevPage = NULL_PTR as RawPointer<StackAllocatorPage>;
+  firstPage.nextPage = NULL_PTR;
+  firstPage.prevPage = NULL_PTR;
 
   allocator.currentPage = addressOf$(firstPage);
   allocator.pageCount = 1 as UInt32;
@@ -116,7 +116,7 @@ function stackAllocator_popFrame(allocator: StackAllocator): void {
   allocator.usedSize = Math.max(allocator.usedSize - frameSize - sizeOf$<UInt32>(), 0) as UInt32;
 }
 
-function stackAllocator_alloc<T extends RawTypeContainer = Void>(
+function stackAllocator_alloc<T extends AnyRawType = Void>(
   allocator: StackAllocator,
   size: number,
   alignment: Alignment,
@@ -145,7 +145,7 @@ function stackAllocator_alloc<T extends RawTypeContainer = Void>(
   if (page.nextPage === NULL_PTR) {
     const newPage = malloc<StackAllocatorPage>(sizeOf$<StackAllocatorPage>() + allocator.pageSize).value$;
     newPage.prevPage = addressOf$(page);
-    newPage.nextPage = NULL_PTR as RawPointer<StackAllocatorPage>;
+    newPage.nextPage = NULL_PTR;
 
     page.nextPage = addressOf$(newPage);
     allocator.pageCount++;

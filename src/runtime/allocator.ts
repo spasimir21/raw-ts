@@ -2,7 +2,7 @@
 
 'use raw';
 
-import { RawArray, RawPointer, RawTypeContainer, Struct, UInt32, Union, Void } from '../types';
+import { AnyRawType, RawArray, RawPointer, Struct, UInt32, Union, Void } from '../types';
 import { addressOf$, offsetOf$, pointerCast$, sizeOf$ } from '../macros';
 import { M, memset, resizeMemory } from './memory';
 import { NULL_PTR } from './nullptr';
@@ -161,7 +161,7 @@ function findFreeBlockForSize(wordSize: number): RawPointer<Block> {
   filledBucketClasses = (filledBucketClasses << (idealBucketClass + 1)) >>> (idealBucketClass + 1);
 
   const firstFilledBucketClass = Math.clz32(filledBucketClasses);
-  if (firstFilledBucketClass > LARGEST_BUCKET_CLASS) return NULL_PTR as RawPointer<Block>;
+  if (firstFilledBucketClass > LARGEST_BUCKET_CLASS) return NULL_PTR;
   if (firstFilledBucketClass === LARGEST_BUCKET_CLASS)
     return findFreeBlockForSizeInBucket(metadata.buckets[LARGEST_BUCKET_INDEX], wordSize);
 
@@ -175,7 +175,7 @@ function findFreeBlockForSize(wordSize: number): RawPointer<Block> {
 
 function findFreeBlockForSizeInBucket(bucket: Bucket, wordSize: number): RawPointer<Block> {
   if (bucket.lastFreeBlock === NULL_PTR || wordSize > bucket.lastFreeBlock.value$.header.selfDescriptor >>> 3)
-    return NULL_PTR as RawPointer<Block>;
+    return NULL_PTR;
 
   let currentBlock = bucket.firstFreeBlock;
   while (currentBlock !== NULL_PTR) {
@@ -214,7 +214,7 @@ function addBlockToFreeList(block: Block) {
   }
 
   if (nextFreeBlock === NULL_PTR) {
-    freeListElement.next = NULL_PTR as RawPointer<Block>;
+    freeListElement.next = NULL_PTR;
     freeListElement.prev = bucket.lastFreeBlock;
 
     if (bucket.lastFreeBlock !== NULL_PTR)
@@ -256,8 +256,8 @@ function removeBlockFromFreeList(block: Block): void {
   if (nextBlock !== NULL_PTR) nextBlock.value$.body.freeListElement.prev = prevBlock;
   else bucket.lastFreeBlock = prevBlock;
 
-  freeListElement.next = NULL_PTR as RawPointer<Block>;
-  freeListElement.prev = NULL_PTR as RawPointer<Block>;
+  freeListElement.next = NULL_PTR;
+  freeListElement.prev = NULL_PTR;
 
   if (prevBlock !== NULL_PTR || nextBlock !== NULL_PTR) return;
 
@@ -266,8 +266,8 @@ function removeBlockFromFreeList(block: Block): void {
 
   const isLastBucket = bucketIndex === LARGEST_BUCKET_INDEX;
 
-  const filledSlots = isLastBucket
-    ? (NULL_PTR as RawPointer<UInt32>)
+  const filledSlots: RawPointer<UInt32> = isLastBucket
+    ? NULL_PTR
     : addressOf$(metadata.filledSlotsForClass[bucketClass]);
 
   if (!isLastBucket) filledSlots.value$ = (filledSlots.value$ & ~(1 << (31 - bucketSlot))) as UInt32;
@@ -285,22 +285,21 @@ function updateNextBlocksPrevDescriptor(block: Block) {
 }
 
 function mergeBlockWithNeighbours(initialBlock: Block): Block {
-  const prevBlock =
+  const prevBlock: RawPointer<Block> =
     metadata.firstBlock === addressOf$(initialBlock) || (initialBlock.header.prevDescriptor & 0b1) === 1
-      ? (NULL_PTR as RawPointer<Block>)
+      ? NULL_PTR
       : pointerCast$<Block>(
           addressOf$(initialBlock) -
             (initialBlock.header.prevDescriptor & ~0b111) -
             offsetOf$<Block, 'body'>()
         );
 
-  let nextBlock =
+  let nextBlock: RawPointer<Block> =
     metadata.lastBlock === addressOf$(initialBlock)
-      ? (NULL_PTR as RawPointer<Block>)
+      ? NULL_PTR
       : pointerCast$<Block>(addressOf$(initialBlock.body) + (initialBlock.header.selfDescriptor & ~0b111));
 
-  if (nextBlock !== NULL_PTR && (nextBlock.value$.header.selfDescriptor & 0b1) === 1)
-    nextBlock = NULL_PTR as RawPointer<Block>;
+  if (nextBlock !== NULL_PTR && (nextBlock.value$.header.selfDescriptor & 0b1) === 1) nextBlock = NULL_PTR;
 
   if (nextBlock === NULL_PTR && prevBlock === NULL_PTR) return initialBlock;
 
@@ -407,10 +406,7 @@ function validateBlock(block: Block): boolean {
   return true;
 }
 
-function malloc<T extends RawTypeContainer = Void>(
-  size: number,
-  zeroAllocated: boolean = false
-): RawPointer<T> {
+function malloc<T extends AnyRawType = Void>(size: number, zeroAllocated: boolean = false): RawPointer<T> {
   if (typeof size !== 'number' || size <= 0 || !Number.isFinite(size) || !Number.isInteger(size))
     throw new Error(`${size} is not a valid size for malloc!`);
 
@@ -437,11 +433,7 @@ function malloc<T extends RawTypeContainer = Void>(
   return addressOf$(freeBlock.body) as RawPointer<T>;
 }
 
-function mresize(
-  pointer: RawPointer<RawTypeContainer>,
-  newSize: number,
-  zeroAllocated: boolean = true
-): boolean {
+function mresize(pointer: RawPointer<AnyRawType>, newSize: number, zeroAllocated: boolean = true): boolean {
   if (typeof newSize !== 'number' || newSize <= 0 || !Number.isFinite(newSize) || !Number.isInteger(newSize))
     throw new Error(`${newSize} is not a valid size for mresize!`);
 
@@ -486,7 +478,7 @@ function mresize(
   return true;
 }
 
-function free(pointer: RawPointer<RawTypeContainer>): void {
+function free(pointer: RawPointer<AnyRawType>): void {
   const block = pointerCast$<Block>(pointer - offsetOf$<Block, 'body'>()).value$;
   if (!validateBlock(block) || (block.header.selfDescriptor & 0b111) !== 1) return;
 

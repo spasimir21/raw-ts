@@ -2,7 +2,7 @@
 
 'use raw';
 
-import { RawArray, RawPointer, RawTypeContainer, Struct, UInt32, Void } from '../types';
+import { AnyRawType, RawArray, RawPointer, Struct, UInt32, Void } from '../types';
 import { addressOf$, offsetOf$, pointerCast$, sizeOf$ } from '../macros';
 import { free, malloc, NULL_PTR } from '../runtime';
 import {
@@ -21,7 +21,7 @@ type HashMapEntryHeader = Struct<{
   prevEntry: RawPointer<HashMapEntry>;
 }>;
 
-type HashMapEntry<T extends RawTypeContainer = Void> = Struct<{
+type HashMapEntry<T extends AnyRawType = Void> = Struct<{
   header: HashMapEntryHeader;
   data: T;
 }>;
@@ -30,7 +30,7 @@ type HashMapBucket = RawPointer<HashMapEntry>;
 
 type HashMapBuckets = RawArray<HashMapBucket>;
 
-type HashMap<T extends RawTypeContainer = Void> = Struct<{
+type HashMap<T extends AnyRawType = Void> = Struct<{
   nBuckets: UInt32;
   buckets: RawPointer<HashMapBuckets>;
   entryAllocator: FixedSizeAllocator<HashMapEntry>;
@@ -41,7 +41,7 @@ type HashMap<T extends RawTypeContainer = Void> = Struct<{
 const HASH_MAP_SIZE = sizeOf$<HashMap>();
 
 function hashMap_init(
-  hashMap: HashMap<RawTypeContainer>,
+  hashMap: HashMap<AnyRawType>,
   log2NBuckets: number,
   entrySize: number,
   entriesPerPage: number
@@ -57,16 +57,16 @@ function hashMap_init(
   hashMap.buckets = malloc<HashMapBuckets>(nBuckets * sizeOf$<HashMapBucket>(), true);
 }
 
-function hashMap_deinit(hashMap: HashMap<RawTypeContainer>) {
+function hashMap_deinit(hashMap: HashMap<AnyRawType>) {
   hashMap.nBuckets = 0 as UInt32;
   fixedSizeAllocator_deinit(hashMap.entryAllocator);
 
   free(hashMap.buckets);
-  hashMap.buckets = NULL_PTR as RawPointer<HashMapBuckets>;
+  hashMap.buckets = NULL_PTR;
 }
 
 function hashMap_getOrInsert_internal(
-  hashMap: HashMap<RawTypeContainer>,
+  hashMap: HashMap<AnyRawType>,
   primaryHash: number,
   secondaryHash: number,
   insertIfNotFound: boolean,
@@ -74,7 +74,7 @@ function hashMap_getOrInsert_internal(
 ): RawPointer<Void> {
   const bucketIndex = primaryHash & (hashMap.nBuckets - 1);
 
-  let prevEntry = NULL_PTR as RawPointer<HashMapEntry>;
+  let prevEntry: RawPointer<HashMapEntry> = NULL_PTR;
   let nextEntry = hashMap.buckets.value$[bucketIndex];
   while (nextEntry !== NULL_PTR) {
     const nextHeader = nextEntry.value$.header;
@@ -95,7 +95,7 @@ function hashMap_getOrInsert_internal(
     nextEntry = nextHeader.nextEntry;
   }
 
-  if (!insertIfNotFound) return NULL_PTR as RawPointer<Void>;
+  if (!insertIfNotFound) return NULL_PTR;
 
   const entry = fixedSizeAllocator_alloc(hashMap.entryAllocator, zeroAllocated).value$;
 
@@ -112,23 +112,20 @@ function hashMap_getOrInsert_internal(
   return addressOf$(entry.data);
 }
 
-const hashMap_get = <T extends RawTypeContainer>(
-  hashMap: HashMap<T>,
-  primaryHash: number,
-  secondaryHash: number
-) => hashMap_getOrInsert_internal(hashMap, primaryHash, secondaryHash, false) as RawPointer<T>;
+const hashMap_get = <T extends AnyRawType>(hashMap: HashMap<T>, primaryHash: number, secondaryHash: number) =>
+  hashMap_getOrInsert_internal(hashMap, primaryHash, secondaryHash, false) as RawPointer<T>;
 
-const hashMap_getOrInsert = <T extends RawTypeContainer>(
+const hashMap_getOrInsert = <T extends AnyRawType>(
   hashMap: HashMap<T>,
   primaryHash: number,
   secondaryHash: number,
   zeroAllocated?: boolean
 ) => hashMap_getOrInsert_internal(hashMap, primaryHash, secondaryHash, true, zeroAllocated) as RawPointer<T>;
 
-const hashMap_has = (hashMap: HashMap<RawTypeContainer>, primaryHash: number, secondaryHash: number) =>
+const hashMap_has = (hashMap: HashMap<AnyRawType>, primaryHash: number, secondaryHash: number) =>
   hashMap_getOrInsert_internal(hashMap, primaryHash, secondaryHash, false) !== NULL_PTR;
 
-function hashMap_removeByEntry<T extends RawTypeContainer>(hashMap: HashMap<T>, entry: RawPointer<T>) {
+function hashMap_removeByEntry<T extends AnyRawType>(hashMap: HashMap<T>, entry: RawPointer<T>) {
   const mapEntry = pointerCast$<HashMapEntry>(entry - offsetOf$<HashMapEntry, 'data'>()).value$;
   const header = mapEntry.header;
 
@@ -144,7 +141,7 @@ function hashMap_removeByEntry<T extends RawTypeContainer>(hashMap: HashMap<T>, 
   fixedSizeAllocator_free(hashMap.entryAllocator, addressOf$(mapEntry));
 }
 
-function hashMap_remove<T extends RawTypeContainer>(
+function hashMap_remove<T extends AnyRawType>(
   hashMap: HashMap<T>,
   primaryHash: number,
   secondaryHash: number
@@ -155,9 +152,9 @@ function hashMap_remove<T extends RawTypeContainer>(
   hashMap_removeByEntry(hashMap, entry);
 }
 
-const hashMap_getEntryCount = (hashMap: HashMap<RawTypeContainer>) => hashMap.entryAllocator.usedEntries;
+const hashMap_getEntryCount = (hashMap: HashMap<AnyRawType>) => hashMap.entryAllocator.usedEntries;
 
-function hashMap_iter<T extends RawTypeContainer>(
+function hashMap_iter<T extends AnyRawType>(
   typedHashMap: HashMap<T>,
   callback: (entry: RawPointer<T>, bucketIndex: number) => void
 ) {
@@ -176,7 +173,7 @@ function hashMap_iter<T extends RawTypeContainer>(
   }
 }
 
-function hashMap_clear(hashMap: HashMap<RawTypeContainer>) {
+function hashMap_clear(hashMap: HashMap<AnyRawType>) {
   const entryAllocator = hashMap.entryAllocator;
 
   hashMap_iter(hashMap, entryData =>
@@ -189,7 +186,7 @@ function hashMap_clear(hashMap: HashMap<RawTypeContainer>) {
   memset(hashMap.buckets, 0, hashMap.nBuckets * sizeOf$<HashMapBucket>());
 }
 
-function hashMap_resize(hashMap: HashMap<RawTypeContainer>, log2NBuckets: number) {
+function hashMap_resize(hashMap: HashMap<AnyRawType>, log2NBuckets: number) {
   if (!Number.isInteger(log2NBuckets) || log2NBuckets < 0 || log2NBuckets > 30)
     throw new Error(`${log2NBuckets} is not a valid value for log2(nBuckets) of hash map!`);
 
@@ -203,7 +200,7 @@ function hashMap_resize(hashMap: HashMap<RawTypeContainer>, log2NBuckets: number
 
     const bucketIndex = primaryHash & (nBuckets - 1);
 
-    let prevEntry = NULL_PTR as RawPointer<HashMapEntry>;
+    let prevEntry: RawPointer<HashMapEntry> = NULL_PTR;
     let nextEntry = newBuckets[bucketIndex];
     while (nextEntry !== NULL_PTR) {
       const nextHeader = nextEntry.value$.header;
@@ -248,7 +245,7 @@ interface HashMapBucketLoad {
   nBucketsOfLoad: [number, number][];
 }
 
-function hashMap_getBucketLoad(hashMap: HashMap<RawTypeContainer>): HashMapBucketLoad {
+function hashMap_getBucketLoad(hashMap: HashMap<AnyRawType>): HashMapBucketLoad {
   const nEntries = hashMap_getEntryCount(hashMap);
   const nBuckets = hashMap.nBuckets;
 

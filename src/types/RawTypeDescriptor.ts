@@ -1,9 +1,9 @@
 import {
   Alignment,
+  AnyRawType,
   ArrayTypeInfo,
   JSPointerTypeInfo,
   RawPointerTypeInfo,
-  RawTypeContainer,
   RawTypeInfo,
   RawTypeInfoOf,
   RawTypeKind,
@@ -247,7 +247,7 @@ type RawTypeDescriptorOfInfo<T extends RawTypeInfo> =
   : T extends StructTypeInfo ? StructDescriptor<{ [K in keyof T['fields']]: RawTypeDescriptorOfInfo<RawTypeInfoOf<T['fields'][K]>> }>
   : RawTypeDescriptor;
 
-type RawTypeDescriptorOf<T extends RawTypeContainer> = RawTypeDescriptorOfInfo<RawTypeInfoOf<T>>;
+type RawTypeDescriptorOf<T extends AnyRawType> = RawTypeDescriptorOfInfo<RawTypeInfoOf<T>>;
 
 export {
   UInt8Descriptor,

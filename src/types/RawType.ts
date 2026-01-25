@@ -32,7 +32,7 @@ type VoidTypeInfo = {
 
 type RawPointerTypeInfo = {
   kind: RawTypeKind.RawPointer;
-  target: RawTypeContainer;
+  target: AnyRawType;
 };
 
 type JSPointerTypeInfo = {
@@ -42,18 +42,18 @@ type JSPointerTypeInfo = {
 
 type ArrayTypeInfo = {
   kind: RawTypeKind.Array;
-  element: RawTypeContainer;
+  element: AnyRawType;
   length: number;
 };
 
 type UnionTypeInfo = {
   kind: RawTypeKind.Union;
-  variants: Record<string, RawTypeContainer>;
+  variants: Record<string, AnyRawType>;
 };
 
 type StructTypeInfo = {
   kind: RawTypeKind.Struct;
-  fields: Record<string, RawTypeContainer>;
+  fields: Record<string, AnyRawType>;
 };
 
 type RawTypeInfo =
@@ -77,11 +77,13 @@ type RawTypeInfo =
 
 type ReferenceRawTypeInfo = VoidTypeInfo | ArrayTypeInfo | UnionTypeInfo | StructTypeInfo;
 
-type RawTypeContainer<T extends RawTypeInfo = RawTypeInfo> = {
+type RawTypeContainer<T extends RawTypeInfo> = {
   [K in typeof RAW_TYPE_INFO_PROPERTY_NAME]: T;
 };
 
-type RawTypeInfoOf<T extends RawTypeContainer> = T[typeof RAW_TYPE_INFO_PROPERTY_NAME];
+type AnyRawType = RawTypeContainer<RawTypeInfo>;
+
+type RawTypeInfoOf<T extends AnyRawType> = T[typeof RAW_TYPE_INFO_PROPERTY_NAME];
 
 type RawTypeOf<T, Info extends RawTypeInfo> = T & RawTypeContainer<Info>;
 
@@ -108,7 +110,7 @@ type Void<Align extends Alignment = 8, Size extends number = number> = RawTypeOf
   }
 >;
 
-type RawPointer<T extends RawTypeContainer> = RawTypeOf<
+type RawPointer<T extends AnyRawType> = RawTypeOf<
   number & { value$: T },
   {
     kind: RawTypeKind.RawPointer;
@@ -124,7 +126,7 @@ type JSPointer<T> = RawTypeOf<
   }
 >;
 
-type RawArray<T extends RawTypeContainer, Length extends number = number> = RawTypeOf<
+type RawArray<T extends AnyRawType, Length extends number = number> = RawTypeOf<
   { [index: number]: T },
   {
     kind: RawTypeKind.Array;
@@ -133,7 +135,7 @@ type RawArray<T extends RawTypeContainer, Length extends number = number> = RawT
   }
 >;
 
-type Union<T extends Record<string, RawTypeContainer>> = RawTypeOf<
+type Union<T extends Record<string, AnyRawType>> = RawTypeOf<
   T,
   {
     kind: RawTypeKind.Union;
@@ -141,7 +143,7 @@ type Union<T extends Record<string, RawTypeContainer>> = RawTypeOf<
   }
 >;
 
-type Struct<T extends Record<string, RawTypeContainer>> = RawTypeOf<
+type Struct<T extends Record<string, AnyRawType>> = RawTypeOf<
   T,
   {
     kind: RawTypeKind.Struct;
@@ -162,6 +164,7 @@ export {
   UnionTypeInfo,
   StructTypeInfo,
   RawTypeContainer,
+  AnyRawType,
   RawTypeInfoOf,
   RawTypeOf,
   UInt8,
