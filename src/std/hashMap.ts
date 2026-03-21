@@ -2,18 +2,7 @@
 
 'use raw';
 
-import {
-  Alignment,
-  AnyRawType,
-  Float32,
-  RawArray,
-  RawPointer,
-  Struct,
-  UInt16,
-  UInt32,
-  UInt8,
-  Void
-} from '../types';
+import { AnyRawType, Float32, RawArray, RawPointer, Struct, UInt16, UInt32, UInt8, Void } from '../types';
 import { free, malloc, memmove, memset, memswap, NULL_PTR } from '../runtime';
 import { addressOf$, pointerCast$, sizeOf$ } from '../macros';
 
