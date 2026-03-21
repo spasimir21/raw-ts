@@ -1,3 +1,5 @@
+import { __DEV__ } from '../dev';
+
 interface MemoryConfig {
   initialMemorySize: number;
   memoryScaleFactor: number;
@@ -24,7 +26,7 @@ function initializeMemory(overrides?: Partial<MemoryConfig>) {
 
   if (overrides) configureMemory(overrides);
 
-  resizeMemory(MEMORY_CONFIG.initialMemorySize);
+  if (__DEV__) resizeMemory(MEMORY_CONFIG.initialMemorySize);
 }
 
 const M = new ArrayBuffer(0, { maxByteLength: 4 * 1024 * 1024 * 1024 /* 4GB */ });
@@ -64,12 +66,27 @@ function formatByteSize(byteSize: number) {
 function resizeMemory(newSize?: number) {
   M.resize(newSize ?? (Math.floor(M.byteLength * MEMORY_CONFIG.memoryScaleFactor) + 7) & ~0b111);
 
-  console.log(`[RAW-TS] Memory resized to ${formatByteSize(M.byteLength)}.`);
+  if (__DEV__) console.log(`[RAW-TS] Memory resized to ${formatByteSize(M.byteLength)}.`);
 }
 
 const memset = (start: number, value: number, size: number) => M_U8.fill(value, start, start + size);
 
 const memmove = (dest: number, src: number, size: number) => M_U8.copyWithin(dest, src, src + size);
+
+function memswap(src: number, dest: number, size: number) {
+  let temp = 0;
+  let a = src;
+  let b = dest;
+
+  for (let i = 0; i < size; i++) {
+    temp = M_U8[a];
+    M_U8[a] = M_U8[b];
+    M_U8[b] = temp;
+
+    a++;
+    b++;
+  }
+}
 
 export {
   MemoryConfig,
@@ -92,5 +109,6 @@ export {
   M_JS,
   resizeMemory,
   memset,
-  memmove
+  memmove,
+  memswap
 };

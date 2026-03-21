@@ -2,300 +2,302 @@
 
 'use raw';
 
-import { AnyRawType, RawArray, RawPointer, Struct, UInt32, Void } from '../types';
-import { addressOf$, offsetOf$, pointerCast$, sizeOf$ } from '../macros';
-import { free, malloc, NULL_PTR } from '../runtime';
 import {
-  FixedSizeAllocator,
-  fixedSizeAllocator_alloc,
-  fixedSizeAllocator_deinit,
-  fixedSizeAllocator_free,
-  fixedSizeAllocator_init
-} from './fixedSizeAllocator';
-import { memset } from '../runtime/memory';
+  Alignment,
+  AnyRawType,
+  Float32,
+  RawArray,
+  RawPointer,
+  Struct,
+  UInt16,
+  UInt32,
+  UInt8,
+  Void
+} from '../types';
+import { free, malloc, memmove, memset, memswap, NULL_PTR } from '../runtime';
+import { addressOf$, pointerCast$, sizeOf$ } from '../macros';
 
-type HashMapEntryHeader = Struct<{
+type HashMapEntry = Struct<{
+  probingDistance: UInt32;
   primaryHash: UInt32;
   secondaryHash: UInt32;
-  nextEntry: RawPointer<HashMapEntry>;
-  prevEntry: RawPointer<HashMapEntry>;
 }>;
-
-type HashMapEntry<T extends AnyRawType = Void> = Struct<{
-  header: HashMapEntryHeader;
-  data: T;
-}>;
-
-type HashMapBucket = RawPointer<HashMapEntry>;
-
-type HashMapBuckets = RawArray<HashMapBucket>;
 
 type HashMap<T extends AnyRawType = Void> = Struct<{
-  nBuckets: UInt32;
-  buckets: RawPointer<HashMapBuckets>;
-  entryAllocator: FixedSizeAllocator<HashMapEntry>;
-}> & {
-  __rawType: T;
-};
+  log2Capacity: UInt8;
+  valueSize: UInt16;
+  size: UInt32;
+  maxSize: UInt32;
+  maxLoadFactor: Float32;
+  entries: RawPointer<RawArray<HashMapEntry>>;
+  values: RawPointer<Void>;
+}> & { _dataType: T };
 
 const HASH_MAP_SIZE = sizeOf$<HashMap>();
 
 function hashMap_init(
-  hashMap: HashMap<AnyRawType>,
-  log2NBuckets: number,
-  entrySize: number,
-  entriesPerPage: number
+  map: HashMap<AnyRawType>,
+  log2Capacity: number,
+  valueSize: number,
+  maxLoadFactor: number
 ) {
-  if (!Number.isInteger(log2NBuckets) || log2NBuckets < 0 || log2NBuckets > 30)
-    throw new Error(`${log2NBuckets} is not a valid value for log2(nBuckets) of hash map!`);
+  const capacity = 1 << log2Capacity;
 
-  const nBuckets = 1 << log2NBuckets;
+  map.log2Capacity = log2Capacity as UInt8;
+  map.valueSize = valueSize as UInt16;
+  map.size = 0 as UInt32;
+  map.maxSize = Math.ceil(capacity * maxLoadFactor) as UInt32;
+  map.maxLoadFactor = maxLoadFactor as Float32;
 
-  hashMap.nBuckets = nBuckets as UInt32;
-  fixedSizeAllocator_init(hashMap.entryAllocator, sizeOf$<HashMapEntry>() + entrySize, entriesPerPage);
-
-  hashMap.buckets = malloc<HashMapBuckets>(nBuckets * sizeOf$<HashMapBucket>(), true);
+  map.entries = malloc(sizeOf$<HashMapEntry>() * capacity, true);
+  map.values = malloc(valueSize * capacity);
 }
 
-function hashMap_deinit(hashMap: HashMap<AnyRawType>) {
-  hashMap.nBuckets = 0 as UInt32;
-  fixedSizeAllocator_deinit(hashMap.entryAllocator);
+function _hashMap_getIndex(map: HashMap<AnyRawType>, primaryHash: number, secondaryHash: number) {
+  const capacity = 1 << map.log2Capacity;
+  const indexMask = capacity - 1;
 
-  free(hashMap.buckets);
-  hashMap.buckets = NULL_PTR;
+  const entries = map.entries.value$;
+
+  let index = primaryHash & indexMask;
+  for (let i = 1; i <= capacity; i++) {
+    const entry = entries[index];
+
+    if (entry.probingDistance < i) return -1;
+
+    if (entry.primaryHash === primaryHash && entry.secondaryHash === secondaryHash) return index;
+
+    index = (index + 1) & indexMask;
+  }
+
+  return -1;
 }
 
-function hashMap_getOrInsert_internal(
-  hashMap: HashMap<AnyRawType>,
+function hashMap_remove(map: HashMap<AnyRawType>, primaryHash: number, secondaryHash: number): boolean {
+  let index = _hashMap_getIndex(map, primaryHash, secondaryHash);
+  if (index === -1) return false;
+
+  const indexMask = (1 << map.log2Capacity) - 1;
+
+  const entries = map.entries.value$;
+  const valueSize = map.valueSize;
+  const values = map.values;
+
+  let entry = entries[index];
+  while (true) {
+    const nextIndex = (index + 1) & indexMask;
+    const nextEntry = entries[nextIndex];
+
+    if (nextEntry.probingDistance <= 1) break;
+
+    memmove(addressOf$(entry), addressOf$(nextEntry), sizeOf$<HashMapEntry>());
+    memmove(values + index * valueSize, values + nextIndex * valueSize, valueSize);
+
+    entry.probingDistance--;
+
+    index = nextIndex;
+    entry = nextEntry;
+  }
+
+  entry.probingDistance = 0 as UInt32;
+  map.size--;
+
+  return true;
+}
+
+function _hashMap_insert_unsafe(
+  map: HashMap<AnyRawType>,
   primaryHash: number,
   secondaryHash: number,
-  insertIfNotFound: boolean,
-  zeroAllocated: boolean = false
+  zeroAllocated: boolean
 ): RawPointer<Void> {
-  const bucketIndex = primaryHash & (hashMap.nBuckets - 1);
+  if (map.size >= map.maxSize) hashMap_resize(map, map.log2Capacity + 1);
 
-  let prevEntry: RawPointer<HashMapEntry> = NULL_PTR;
-  let nextEntry = hashMap.buckets.value$[bucketIndex];
-  while (nextEntry !== NULL_PTR) {
-    const nextHeader = nextEntry.value$.header;
+  const capacity = 1 << map.log2Capacity;
+  const indexMask = capacity - 1;
 
-    const nextPrimaryHash = nextHeader.primaryHash;
-    const nextSecondaryHash = nextHeader.secondaryHash;
+  const valueSize = map.valueSize;
 
-    if (nextPrimaryHash === primaryHash && nextSecondaryHash === secondaryHash)
-      return addressOf$(nextEntry.value$.data);
+  const entries = map.entries.value$;
+  const values = map.values;
 
-    if (
-      nextPrimaryHash > primaryHash ||
-      (nextPrimaryHash === primaryHash && nextSecondaryHash > secondaryHash)
-    )
-      break;
+  let insertedValuePointer: RawPointer<Void> = NULL_PTR;
 
-    prevEntry = nextEntry;
-    nextEntry = nextHeader.nextEntry;
+  let index = primaryHash & indexMask;
+  let probingDistance = 1;
+  for (let i = 0; i < capacity; i++) {
+    const entry = entries[index];
+    if (entry.probingDistance < probingDistance) {
+      let temp = entry.probingDistance;
+      entry.probingDistance = probingDistance as UInt32;
+      probingDistance = temp;
+
+      temp = entry.primaryHash;
+      entry.primaryHash = primaryHash as UInt32;
+      primaryHash = temp;
+
+      temp = entry.secondaryHash;
+      entry.secondaryHash = secondaryHash as UInt32;
+      secondaryHash = temp;
+
+      if (insertedValuePointer === NULL_PTR)
+        insertedValuePointer = pointerCast$<Void>(values + index * valueSize);
+      else memswap(insertedValuePointer, values + index * valueSize, valueSize);
+
+      if (probingDistance === 0) break;
+    }
+
+    index = (index + 1) & indexMask;
+    probingDistance++;
   }
 
-  if (!insertIfNotFound) return NULL_PTR;
-
-  const entry = fixedSizeAllocator_alloc(hashMap.entryAllocator, zeroAllocated).value$;
-
-  entry.header.primaryHash = primaryHash as UInt32;
-  entry.header.secondaryHash = secondaryHash as UInt32;
-  entry.header.prevEntry = prevEntry;
-  entry.header.nextEntry = nextEntry;
-
-  if (nextEntry !== NULL_PTR) nextEntry.value$.header.prevEntry = addressOf$(entry);
-
-  if (prevEntry !== NULL_PTR) prevEntry.value$.header.nextEntry = addressOf$(entry);
-  else hashMap.buckets.value$[bucketIndex] = addressOf$(entry);
-
-  return addressOf$(entry.data);
-}
-
-const hashMap_get = <T extends AnyRawType>(hashMap: HashMap<T>, primaryHash: number, secondaryHash: number) =>
-  hashMap_getOrInsert_internal(hashMap, primaryHash, secondaryHash, false) as RawPointer<T>;
-
-const hashMap_getOrInsert = <T extends AnyRawType>(
-  hashMap: HashMap<T>,
-  primaryHash: number,
-  secondaryHash: number,
-  zeroAllocated?: boolean
-) => hashMap_getOrInsert_internal(hashMap, primaryHash, secondaryHash, true, zeroAllocated) as RawPointer<T>;
-
-const hashMap_has = (hashMap: HashMap<AnyRawType>, primaryHash: number, secondaryHash: number) =>
-  hashMap_getOrInsert_internal(hashMap, primaryHash, secondaryHash, false) !== NULL_PTR;
-
-function hashMap_removeByEntry<T extends AnyRawType>(hashMap: HashMap<T>, entry: RawPointer<T>) {
-  const mapEntry = pointerCast$<HashMapEntry>(entry - offsetOf$<HashMapEntry, 'data'>()).value$;
-  const header = mapEntry.header;
-
-  if (header.nextEntry !== NULL_PTR) header.nextEntry.value$.header.prevEntry = header.prevEntry;
-
-  if (header.prevEntry !== NULL_PTR) {
-    header.prevEntry.value$.header.nextEntry = header.nextEntry;
-  } else {
-    const bucketIndex: number = header.primaryHash & (hashMap.nBuckets - 1);
-    hashMap.buckets.value$[bucketIndex] = header.nextEntry;
+  if (insertedValuePointer !== NULL_PTR) {
+    map.size++;
+    if (zeroAllocated) memset(insertedValuePointer, 0, valueSize);
   }
 
-  fixedSizeAllocator_free(hashMap.entryAllocator, addressOf$(mapEntry));
+  return insertedValuePointer;
 }
 
-function hashMap_remove<T extends AnyRawType>(
-  hashMap: HashMap<T>,
+function hashMap_get<T extends AnyRawType>(
+  map: HashMap<T>,
   primaryHash: number,
   secondaryHash: number
-) {
-  const entry = hashMap_get(hashMap, primaryHash, secondaryHash);
-  if (entry === NULL_PTR) return;
+): RawPointer<T> {
+  const index = _hashMap_getIndex(map, primaryHash, secondaryHash);
+  if (index === -1) return NULL_PTR;
 
-  hashMap_removeByEntry(hashMap, entry);
+  return (map.values + index * map.valueSize) as RawPointer<T>;
 }
 
-const hashMap_getEntryCount = (hashMap: HashMap<AnyRawType>) => hashMap.entryAllocator.usedEntries;
+function hashMap_getOrInsert<T extends AnyRawType>(
+  map: HashMap<T>,
+  primaryHash: number,
+  secondaryHash: number,
+  zeroAllocated: boolean = false
+): RawPointer<T> {
+  const valuePointer = hashMap_get(map, primaryHash, secondaryHash);
+  if (valuePointer !== NULL_PTR) return valuePointer;
 
-function hashMap_iter<T extends AnyRawType>(
-  typedHashMap: HashMap<T>,
-  callback: (entry: RawPointer<T>, bucketIndex: number) => void
+  return _hashMap_insert_unsafe(map, primaryHash, secondaryHash, zeroAllocated) as RawPointer<T>;
+}
+
+function hashMap_insert<T extends AnyRawType>(
+  map: HashMap<T>,
+  primaryHash: number,
+  secondaryHash: number,
+  zeroAllocated: boolean = false
+): RawPointer<T> {
+  const index = _hashMap_getIndex(map, primaryHash, secondaryHash);
+  if (index !== -1) return NULL_PTR;
+
+  return _hashMap_insert_unsafe(map, primaryHash, secondaryHash, zeroAllocated) as RawPointer<T>;
+}
+
+function hashMap_resize(map: HashMap<AnyRawType>, log2Capacity: number) {
+  const newCapacity = 1 << log2Capacity;
+  const newMaxSize = Math.ceil(newCapacity * map.maxLoadFactor);
+
+  if (map.size > newMaxSize)
+    throw new Error(
+      `Cannot shrink hash map with ${map.size} entries from 2^${map.log2Capacity} to 2^${log2Capacity} capacity as it would exceed the maximum load factor of ${map.maxLoadFactor.toFixed(2)}!`
+    );
+
+  const oldCapacity = 1 << map.log2Capacity;
+  const oldEntries = map.entries.value$;
+  const oldValues = map.values;
+
+  const valueSize = map.valueSize;
+
+  map.log2Capacity = log2Capacity as UInt8;
+  map.maxSize = newMaxSize as UInt32;
+  map.size = 0 as UInt32;
+  map.entries = malloc(sizeOf$<HashMapEntry>() * newCapacity, true);
+  map.values = malloc(valueSize * newCapacity);
+
+  for (let i = 0; i < oldCapacity; i++) {
+    const entry = oldEntries[i];
+    if (entry.probingDistance === 0) continue;
+
+    const valuePointer = _hashMap_insert_unsafe(map, entry.primaryHash, entry.secondaryHash, false);
+    memmove(valuePointer, oldValues + i * valueSize, valueSize);
+  }
+
+  free(addressOf$(oldEntries));
+  free(oldValues);
+}
+
+function hashMap_iterate<T extends AnyRawType>(
+  map: HashMap<T>,
+  callback: (value: RawPointer<T>, primaryHash: number, secondaryHash: number) => void
 ) {
-  const hashMap = typedHashMap as HashMap;
+  const capacity = 1 << map.log2Capacity;
+  const valueSize = map.valueSize;
 
-  const buckets = hashMap.buckets.value$;
-  const nBuckets = hashMap.nBuckets;
+  const entries = map.entries.value$;
+  const values = map.values;
 
-  for (let i = 0; i < nBuckets; i++) {
-    let entry = buckets[i];
-    while (entry !== NULL_PTR) {
-      const nextEntry = entry.value$.header.nextEntry;
-      callback(addressOf$(entry.value$.data) as RawPointer<T>, i);
-      entry = nextEntry;
-    }
+  for (let i = 0; i < capacity; i++) {
+    const entry = entries[i];
+    if (entry.probingDistance === 0) continue;
+
+    callback((values + i * valueSize) as RawPointer<T>, entry.primaryHash, entry.secondaryHash);
   }
 }
 
-function hashMap_clear(hashMap: HashMap<AnyRawType>) {
-  const entryAllocator = hashMap.entryAllocator;
+const hashMap_getLoadFactor = (map: HashMap<AnyRawType>) => map.size / (1 << map.log2Capacity);
 
-  hashMap_iter(hashMap, entryData =>
-    fixedSizeAllocator_free(
-      entryAllocator,
-      pointerCast$<HashMapEntry>(entryData - offsetOf$<HashMapEntry, 'data'>())
-    )
-  );
+function hashMap_deinit(map: HashMap<AnyRawType>) {
+  free(map.entries);
+  free(map.values);
 
-  memset(hashMap.buckets, 0, hashMap.nBuckets * sizeOf$<HashMapBucket>());
+  memset(addressOf$(map), 0, HASH_MAP_SIZE);
 }
 
-function hashMap_resize(hashMap: HashMap<AnyRawType>, log2NBuckets: number) {
-  if (!Number.isInteger(log2NBuckets) || log2NBuckets < 0 || log2NBuckets > 30)
-    throw new Error(`${log2NBuckets} is not a valid value for log2(nBuckets) of hash map!`);
-
-  const nBuckets = 1 << log2NBuckets;
-  const newBuckets = malloc<HashMapBuckets>(nBuckets * sizeOf$<HashMapBucket>(), true).value$;
-
-  hashMap_iter(hashMap, entryData => {
-    const entry = pointerCast$<HashMapEntry>(entryData - offsetOf$<HashMapEntry, 'data'>()).value$;
-    const primaryHash = entry.header.primaryHash;
-    const secondaryHash = entry.header.secondaryHash;
-
-    const bucketIndex = primaryHash & (nBuckets - 1);
-
-    let prevEntry: RawPointer<HashMapEntry> = NULL_PTR;
-    let nextEntry = newBuckets[bucketIndex];
-    while (nextEntry !== NULL_PTR) {
-      const nextHeader = nextEntry.value$.header;
-
-      const nextPrimaryHash = nextHeader.primaryHash;
-      const nextSecondaryHash = nextHeader.secondaryHash;
-
-      if (
-        nextPrimaryHash > primaryHash ||
-        (nextPrimaryHash === primaryHash && nextSecondaryHash > secondaryHash)
-      )
-        break;
-
-      prevEntry = nextEntry;
-      nextEntry = nextHeader.nextEntry;
-    }
-
-    entry.header.prevEntry = prevEntry;
-    entry.header.nextEntry = nextEntry;
-
-    if (nextEntry !== NULL_PTR) nextEntry.value$.header.prevEntry = addressOf$(entry);
-
-    if (prevEntry !== NULL_PTR) prevEntry.value$.header.nextEntry = addressOf$(entry);
-    else newBuckets[bucketIndex] = addressOf$(entry);
-  });
-
-  hashMap.nBuckets = nBuckets as UInt32;
-
-  free(hashMap.buckets);
-  hashMap.buckets = addressOf$(newBuckets);
-}
-
-interface HashMapBucketLoad {
+interface ProbingAnalysis {
+  loadFactor: number;
   nEntries: number;
-  nBuckets: number;
-  nEmptyBuckets: number;
-  minBucketLoad: number;
-  maxBucketLoad: number;
-  loadStandardDeviation: number;
-  meanBucketLoad: number;
-  medianBucketLoad: number;
-  nBucketsOfLoad: [number, number][];
+  maxProbingDistance: number;
+  meanProbingDistance: number;
+  nEntriesOfProbingDistance: [number, number][];
 }
 
-function hashMap_getBucketLoad(hashMap: HashMap<AnyRawType>): HashMapBucketLoad {
-  const nEntries = hashMap_getEntryCount(hashMap);
-  const nBuckets = hashMap.nBuckets;
+function hashMap_analyzeProbing(map: HashMap<AnyRawType>): ProbingAnalysis {
+  const capacity = 1 << map.log2Capacity;
+  const entries = map.entries.value$;
 
-  const loadsByBucket = new Array<number>(nBuckets).fill(0);
+  const distances: number[] = [];
 
-  hashMap_iter(hashMap, (_, i) => loadsByBucket[i]++);
+  for (let i = 0; i < capacity; i++) {
+    const entry = entries[i];
+    if (entry.probingDistance === 0) continue;
+    distances.push(entry.probingDistance);
+  }
 
-  const nOfLoad = new Map<number, number>();
-  for (const load of loadsByBucket) nOfLoad.set(load, (nOfLoad.get(load) ?? 0) + 1);
-
-  const meanBucketLoad = nEntries / nBuckets;
-  let loadStandardDeviation = 0;
-  for (let l of loadsByBucket) loadStandardDeviation += (meanBucketLoad - l) ** 2;
-  loadStandardDeviation = Math.sqrt(loadStandardDeviation / nBuckets);
-
-  const sortedLoads = [...loadsByBucket].sort((a, b) => a - b);
+  const nOfDistance = new Map<number, number>();
+  for (const distance of distances) nOfDistance.set(distance, (nOfDistance.get(distance) ?? 0) + 1);
 
   return {
-    nEntries,
-    nBuckets,
-    nEmptyBuckets: loadsByBucket.reduce((n, l) => (l === 0 ? n + 1 : n), 0),
-    minBucketLoad: loadsByBucket.reduce((min, l) => (l < min ? l : min), Infinity),
-    maxBucketLoad: loadsByBucket.reduce((max, l) => (l > max ? l : max), 0),
-    loadStandardDeviation,
-    meanBucketLoad,
-    medianBucketLoad: (sortedLoads[nBuckets / 2 - 1] + sortedLoads[nBuckets / 2]) / 2,
-    nBucketsOfLoad: Array.from(nOfLoad.entries())
-      .map(([l, n]) => [n, l] as [number, number])
-      .sort((a, b) => b[1] - a[1])
+    loadFactor: hashMap_getLoadFactor(map),
+    nEntries: map.size,
+    maxProbingDistance: distances.reduce((a, b) => (a > b ? a : b), 0),
+    meanProbingDistance: distances.length === 0 ? 0 : distances.reduce((a, b) => a + b, 0) / distances.length,
+    nEntriesOfProbingDistance: Array.from(nOfDistance.entries()).sort((a, b) => a[0] - b[0])
   };
 }
 
 export {
   HashMap,
-  HashMapEntry,
-  HashMapEntryHeader,
-  HashMapBucket,
-  HashMapBuckets,
   HASH_MAP_SIZE,
   hashMap_init,
-  hashMap_deinit,
+  hashMap_remove,
   hashMap_get,
   hashMap_getOrInsert,
-  hashMap_has,
-  hashMap_removeByEntry,
-  hashMap_remove,
-  hashMap_getEntryCount,
-  hashMap_iter,
-  hashMap_clear,
+  hashMap_insert,
   hashMap_resize,
-  HashMapBucketLoad,
-  hashMap_getBucketLoad
+  hashMap_iterate,
+  hashMap_getLoadFactor,
+  hashMap_deinit,
+  ProbingAnalysis,
+  hashMap_analyzeProbing
 };
