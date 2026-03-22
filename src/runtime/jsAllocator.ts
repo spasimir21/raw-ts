@@ -5,7 +5,8 @@
 import { JSPointer } from '../types';
 import { M_JS } from './memory';
 
-let jsValueFreeListHead: number = -1;
+const JS_FREE_SET = new Set<number>();
+const JS_FREE_LIST: number[] = [];
 
 const JS_VALUES_INFO = {
   totalFreeSize: 0,
@@ -21,36 +22,27 @@ const JS_VALUES_INFO = {
 };
 
 function allocJSValue<T>(): JSPointer<T> {
-  if (jsValueFreeListHead < 0) {
+  if (JS_FREE_LIST.length === 0) {
     M_JS.push(null);
     return (M_JS.length - 1) as JSPointer<T>;
   }
 
-  if (typeof M_JS[jsValueFreeListHead] !== 'number') throw new Error('JS values list has been corrupted!');
+  const pointer = JS_FREE_LIST.pop()! as JSPointer<T>;
 
+  JS_FREE_SET.delete(pointer);
   JS_VALUES_INFO.totalFreeSize--;
-
-  const pointer = jsValueFreeListHead as JSPointer<T>;
-
-  jsValueFreeListHead = M_JS[pointer];
-  M_JS[pointer] = null;
 
   return pointer;
 }
 
 function freeJSValue(pointer: JSPointer<any>): void {
-  if (
-    pointer < 0 ||
-    pointer > M_JS.length - 1 ||
-    !Number.isInteger(pointer) ||
-    typeof M_JS[pointer] === 'number'
-  )
-    return;
+  if (JS_FREE_SET.has(pointer)) return;
+
+  M_JS[pointer] = null;
+  JS_FREE_LIST.push(pointer);
 
   JS_VALUES_INFO.totalFreeSize++;
-
-  M_JS[pointer] = jsValueFreeListHead;
-  jsValueFreeListHead = pointer;
+  JS_FREE_SET.add(pointer);
 }
 
 export { JS_VALUES_INFO, allocJSValue, freeJSValue };
