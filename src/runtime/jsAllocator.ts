@@ -2,6 +2,7 @@
 
 'use raw';
 
+import { NULL_JS_PTR } from './nullptr';
 import { JSPointer } from '../types';
 import { M_JS } from './memory';
 
@@ -36,7 +37,7 @@ function allocJSValue<T>(): JSPointer<T> {
 }
 
 function freeJSValue(pointer: JSPointer<any>): void {
-  if (JS_FREE_SET.has(pointer)) return;
+  if (pointer === NULL_JS_PTR || JS_FREE_SET.has(pointer)) return;
 
   M_JS[pointer] = null;
   JS_FREE_LIST.push(pointer);

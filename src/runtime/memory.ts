@@ -48,7 +48,7 @@ try {
 const M_F32 = new Float32Array(M);
 const M_F64 = new Float64Array(M);
 
-const M_JS: any[] = [];
+const M_JS: any[] = [null];
 
 function formatByteSize(byteSize: number) {
   if (byteSize < 1024) return `${byteSize} B`;
