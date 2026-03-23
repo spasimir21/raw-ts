@@ -1,6 +1,6 @@
 {
   "name": "raw-ts",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "main": "./dist/lsp/index.js",
   "description": "A compile-time, C-like, low-level type and memory management system for TypeScript",
   "scripts": {

@@ -1,40 +1,24 @@
 import { getPropertyAccessDiagnostic } from '../../analysis/diagnostics/getPropertyAccessDiagnostic';
-import { createErrorExpression, createExpressionForJSValue } from './helpers';
+import { Alignment, RawTypeDescriptor, RawTypeKind } from '../../types';
 import { analyzeRawType, isRawType } from '../../analysis/analysis';
-import { Alignment, RawTypeDescriptor, RawTypeKind, ReferenceRawTypeKind } from '../../types';
-import { RAW_TS_RUNTIME_OBJECT } from '../../constants';
-import { createEnum } from '../../utils/enum';
+import { RAW_TS_MEMORY_TYPES } from '../../constants';
+import { createErrorExpression } from './helpers';
 import type TS from 'typescript';
 
-const MEMORY = createEnum(
-  'M_U8',
-  'M_I8',
-  'M_U16',
-  'M_I16',
-  'M_U32',
-  'M_I32',
-  'M_U64',
-  'M_I64',
-  'M_F16',
-  'M_F32',
-  'M_F64',
-  'M_JS'
-);
-
 const TYPE_KIND_TO_MEMORY_MAP = {
-  [RawTypeKind.UInt8]: MEMORY.M_U8,
-  [RawTypeKind.Int8]: MEMORY.M_I8,
-  [RawTypeKind.UInt16]: MEMORY.M_U16,
-  [RawTypeKind.Int16]: MEMORY.M_I16,
-  [RawTypeKind.UInt32]: MEMORY.M_U32,
-  [RawTypeKind.Int32]: MEMORY.M_I32,
-  [RawTypeKind.UInt64]: MEMORY.M_U64,
-  [RawTypeKind.Int64]: MEMORY.M_I64,
-  [RawTypeKind.Float16]: MEMORY.M_F16,
-  [RawTypeKind.Float32]: MEMORY.M_F32,
-  [RawTypeKind.Float64]: MEMORY.M_F64,
-  [RawTypeKind.RawPointer]: MEMORY.M_U32,
-  [RawTypeKind.JSPointer]: MEMORY.M_U32
+  [RawTypeKind.UInt8]: RAW_TS_MEMORY_TYPES.M_U8,
+  [RawTypeKind.Int8]: RAW_TS_MEMORY_TYPES.M_I8,
+  [RawTypeKind.UInt16]: RAW_TS_MEMORY_TYPES.M_U16,
+  [RawTypeKind.Int16]: RAW_TS_MEMORY_TYPES.M_I16,
+  [RawTypeKind.UInt32]: RAW_TS_MEMORY_TYPES.M_U32,
+  [RawTypeKind.Int32]: RAW_TS_MEMORY_TYPES.M_I32,
+  [RawTypeKind.UInt64]: RAW_TS_MEMORY_TYPES.M_U64,
+  [RawTypeKind.Int64]: RAW_TS_MEMORY_TYPES.M_I64,
+  [RawTypeKind.Float16]: RAW_TS_MEMORY_TYPES.M_F16,
+  [RawTypeKind.Float32]: RAW_TS_MEMORY_TYPES.M_F32,
+  [RawTypeKind.Float64]: RAW_TS_MEMORY_TYPES.M_F64,
+  [RawTypeKind.RawPointer]: RAW_TS_MEMORY_TYPES.M_U32,
+  [RawTypeKind.JSPointer]: RAW_TS_MEMORY_TYPES.M_U32
 } as const;
 
 enum PropertyAccessOperationKind {
@@ -181,10 +165,7 @@ function createResolveValueExpression(
     : 3;
 
   const valueExpression = f.createElementAccessExpression(
-    f.createPropertyAccessExpression(
-      f.createIdentifier(RAW_TS_RUNTIME_OBJECT),
-      f.createIdentifier(TYPE_KIND_TO_MEMORY_MAP[typeKind as keyof typeof TYPE_KIND_TO_MEMORY_MAP])
-    ),
+    f.createIdentifier('__' + TYPE_KIND_TO_MEMORY_MAP[typeKind as keyof typeof TYPE_KIND_TO_MEMORY_MAP]),
     shift === 0
       ? expression
       : f.createBinaryExpression(
@@ -270,7 +251,7 @@ function transformPropertyAccess(
 
         if (operation.kind === PropertyAccessOperationKind.JS_POINTER_DEREF)
           expression = f.createElementAccessExpression(
-            f.createPropertyAccessExpression(f.createIdentifier(RAW_TS_RUNTIME_OBJECT), MEMORY.M_JS),
+            f.createIdentifier('__' + RAW_TS_MEMORY_TYPES.M_JS),
             expression
           );
 

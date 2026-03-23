@@ -1,10 +1,26 @@
 import { generateErrorCodes } from './utils/errorCodes';
+import { createEnum } from './utils/enum';
 
 const RAW_TS_IMPORT_PATH = 'raw-ts';
 
 const RAW_TS_RUNTIME_IMPORT_PATH = `${RAW_TS_IMPORT_PATH}/runtime`;
 
 const RAW_TS_RUNTIME_OBJECT = 'RAW$';
+
+const RAW_TS_MEMORY_TYPES = createEnum(
+  'M_U8',
+  'M_I8',
+  'M_U16',
+  'M_I16',
+  'M_U32',
+  'M_I32',
+  'M_U64',
+  'M_I64',
+  'M_F16',
+  'M_F32',
+  'M_F64',
+  'M_JS'
+);
 
 const RAW_TS_DIAGNOSTIC_CODES = generateErrorCodes(69420, [
   'MISSING_USE_RAW_DIRECTIVE',
@@ -44,6 +60,7 @@ export {
   RAW_TS_IMPORT_PATH,
   RAW_TS_RUNTIME_IMPORT_PATH,
   RAW_TS_RUNTIME_OBJECT,
+  RAW_TS_MEMORY_TYPES,
   RAW_TS_DIAGNOSTIC_CODES,
   RAW_TS_RUNTIME_IMPORT_PATH_PRAGMA,
   DISABLE_RAW_TS_PRAGMA,

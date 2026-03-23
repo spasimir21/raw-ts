@@ -6,14 +6,13 @@ import { transformPropertyAccess } from './transformPropertyAccess';
 import { transformMacro } from './transformMacro';
 import type TS from 'typescript';
 import {
+  RAW_TS_MEMORY_TYPES,
   RAW_TS_RUNTIME_IMPORT_PATH,
   RAW_TS_RUNTIME_IMPORT_PATH_PRAGMA,
   RAW_TS_RUNTIME_OBJECT
 } from '../../constants';
 
-const RAW_TS_RUNTIME_IMPORT_PATH_PRAGMA_REGEX = new RegExp(
-  `${RAW_TS_RUNTIME_IMPORT_PATH_PRAGMA}\\((.+?)\\)`
-);
+const RAW_TS_RUNTIME_IMPORT_PATH_PRAGMA_REGEX = new RegExp(`${RAW_TS_RUNTIME_IMPORT_PATH_PRAGMA}\\((.+?)\\)`);
 
 function transformRawTsFile(
   sourceFile: TS.SourceFile,
@@ -71,6 +70,23 @@ function transformRawTsFile(
         ),
         f.createStringLiteral(runtimeImportPath),
         undefined
+      ),
+      f.createVariableStatement(
+        undefined,
+        f.createVariableDeclarationList(
+          Object.values(RAW_TS_MEMORY_TYPES).map(type =>
+            f.createVariableDeclaration(
+              f.createIdentifier('__' + type),
+              undefined,
+              undefined,
+              f.createPropertyAccessExpression(
+                f.createIdentifier(RAW_TS_RUNTIME_OBJECT),
+                f.createIdentifier(type)
+              )
+            )
+          ),
+          ts.NodeFlags.Const
+        )
       ),
       ...sourceFile.statements
     ],
