@@ -23,7 +23,10 @@ class VoidValue {
 }
 
 class RawPointerValue<T extends RawTypeDescriptor> {
-  constructor(public readonly address$: number, private readonly _descriptor: T) {}
+  constructor(
+    public readonly address$: number,
+    private readonly _descriptor: T
+  ) {}
 
   read(): JSValueFromRawTypeDescriptor<T> {
     return readRaw(this.address$, this._descriptor);
@@ -39,7 +42,10 @@ class JSPointerValue<T> {
 }
 
 class RawArrayValue<T extends RawTypeDescriptor> {
-  constructor(public readonly _address: number, private readonly _descriptor: T) {}
+  constructor(
+    public readonly _address: number,
+    private readonly _descriptor: T
+  ) {}
 
   readAt(index: number): JSValueFromRawTypeDescriptor<T> {
     return readRaw(this._address + index * this._descriptor.size, this._descriptor);
@@ -83,9 +89,9 @@ function readRaw<T extends RawTypeDescriptor>(
     case RawTypeKind.Void:
       return new VoidValue(address) as any;
     case RawTypeKind.RawPointer:
-      return new RawPointerValue(M_U32[address >> 2], descriptor.targetDescriptor) as any;
+      return new RawPointerValue(M_U32[address >>> 2], descriptor.targetDescriptor) as any;
     case RawTypeKind.JSPointer:
-      return new JSPointerValue(M_U32[address >> 2]) as any;
+      return new JSPointerValue(M_U32[address >>> 2]) as any;
     case RawTypeKind.Array:
       return (
         descriptor.hasFixedLength
@@ -108,9 +114,9 @@ function readRaw<T extends RawTypeDescriptor>(
       // prettier-ignore
       const adjustedAddress = 
           descriptor.alignment === 1 ? address
-        : descriptor.alignment === 2 ? address >> 1
-        : descriptor.alignment === 4 ? address >> 2
-        : address >> 3;
+        : descriptor.alignment === 2 ? address >>> 1
+        : descriptor.alignment === 4 ? address >>> 2
+        : address >>> 3;
 
       return RAW_TYPE_KIND_TO_MEMORY[descriptor.kind][adjustedAddress] as any;
   }

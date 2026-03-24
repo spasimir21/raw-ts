@@ -170,7 +170,7 @@ function createResolveValueExpression(
       ? expression
       : f.createBinaryExpression(
           expression,
-          f.createToken(ts.SyntaxKind.GreaterThanGreaterThanToken),
+          f.createToken(ts.SyntaxKind.GreaterThanGreaterThanGreaterThanToken),
           f.createNumericLiteral(shift)
         )
   );
@@ -229,14 +229,34 @@ function transformPropertyAccess(
           continue;
         }
 
+        let multiple = operation.elementSize;
+        let shift = 0;
+
+        while (multiple > 0 && multiple % 2 === 0) {
+          multiple >>>= 1;
+          shift++;
+        }
+
+        let indexExpression = ts.visitNode(operation.indexExpression, visit) as TS.Expression;
+
+        if (shift > 0)
+          indexExpression = f.createBinaryExpression(
+            indexExpression,
+            f.createToken(ts.SyntaxKind.LessThanLessThanToken),
+            f.createNumericLiteral(shift)
+          );
+
+        if (multiple !== 1)
+          indexExpression = f.createBinaryExpression(
+            indexExpression,
+            f.createToken(ts.SyntaxKind.AsteriskToken),
+            f.createNumericLiteral(multiple)
+          );
+
         expression = f.createBinaryExpression(
           expression,
           f.createToken(ts.SyntaxKind.PlusToken),
-          f.createBinaryExpression(
-            ts.visitNode(operation.indexExpression, visit) as TS.Expression,
-            f.createToken(ts.SyntaxKind.AsteriskToken),
-            f.createNumericLiteral(operation.elementSize)
-          )
+          indexExpression
         );
 
         continue;
