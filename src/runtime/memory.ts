@@ -1,13 +1,13 @@
-import { __DEV__ } from '../dev';
-
 interface MemoryConfig {
   initialMemorySize: number;
   memoryScaleFactor: number;
+  logging: boolean;
 }
 
 let MEMORY_CONFIG: MemoryConfig = Object.freeze({
   initialMemorySize: 1024 * 1024, // 1mb
-  memoryScaleFactor: 2
+  memoryScaleFactor: 2,
+  logging: true
 });
 
 let IS_MEMORY_INITIALIZED = false;
@@ -26,7 +26,7 @@ function initializeMemory(overrides?: Partial<MemoryConfig>) {
 
   if (overrides) configureMemory(overrides);
 
-  if (__DEV__) resizeMemory(MEMORY_CONFIG.initialMemorySize);
+  resizeMemory(MEMORY_CONFIG.initialMemorySize);
 }
 
 const M = new ArrayBuffer(0, { maxByteLength: 4 * 1024 * 1024 * 1024 /* 4GB */ });
@@ -66,7 +66,7 @@ function formatByteSize(byteSize: number) {
 function resizeMemory(newSize?: number) {
   M.resize(newSize ?? (Math.floor(M.byteLength * MEMORY_CONFIG.memoryScaleFactor) + 7) & ~0b111);
 
-  if (__DEV__) console.log(`[RAW-TS] Memory resized to ${formatByteSize(M.byteLength)}.`);
+  if (MEMORY_CONFIG.logging) console.log(`[RAW-TS] Memory resized to ${formatByteSize(M.byteLength)}.`);
 }
 
 const memset = (start: number, value: number, size: number) => M_U8.fill(value, start, start + size);
